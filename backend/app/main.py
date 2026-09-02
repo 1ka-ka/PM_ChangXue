@@ -37,8 +37,12 @@ def create_app() -> FastAPI:
 
             Base.metadata.create_all(engine)
             seed_tags()
-        # 定时任务：榜单结算（测试环境跳过，避免与内存库冲突）
+        # 定时任务：榜单结算 + AI 无人值守兜底（测试环境跳过，避免与内存库冲突）
         scheduler = start_scheduler(settings.APP_ENV)
+        if scheduler is not None:
+            from app.jobs.ai_fallback import register as register_ai_fallback
+
+            register_ai_fallback(scheduler)
         yield
         if scheduler is not None:
             scheduler.shutdown(wait=False)

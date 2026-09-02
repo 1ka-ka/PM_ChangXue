@@ -60,5 +60,11 @@ class Settings(BaseSettings):
     SMS_ALIYUN_SIGN_NAME: str = ""
     SMS_ALIYUN_TEMPLATE_CODE: str = ""
 
+    # ---- AI 无人值守兜底（V1.5；LLM 关闭时任务空转）----
+    AI_FALLBACK_ENABLED: bool = True
+    AI_FALLBACK_MINUTES: int = 30  # 无人回答超过该时长才兜底
+    AI_FALLBACK_SCAN_INTERVAL: int = 5  # 扫描周期（分钟）
+    AI_FALLBACK_BATCH: int = 5  # 每轮最多生成条数（防 LLM 过载）
+
 
 settings = Settings()
