@@ -1,6 +1,7 @@
-"""account 业务逻辑（注册/登录/资料/头像/个人主页）。"""
+"""account 业务逻辑（注册/登录/资料/头像/个人主页/短信验证码）。"""
 
-from datetime import datetime, timezone
+import secrets
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from sqlalchemy import select
@@ -10,7 +11,7 @@ from app.core.config import settings
 from app.core.exceptions import BizError, ErrCode
 from app.core.security import hash_password, mask_phone, verify_password
 from app.core.sensitive import contains_sensitive
-from app.models import CreditAccount, CreditLog, GratitudeStat, User
+from app.models import CreditAccount, CreditLog, GratitudeStat, SmsCode, User
 from app.modules.account.schemas import Gratitude, UserBrief, UserFull
 
 # 头像 magic bytes 白名单（技术细节文档 §7.4：不能只信扩展名）
@@ -153,3 +154,102 @@ def save_image(data: bytes, ext: str, *, max_px: int = 1280, prefix: str = "img"
 def save_avatar(data: bytes, ext: str) -> str:
     """头像落盘：压缩至 256px。"""
     return save_image(data, ext, max_px=256, prefix="avatar")
+
+
+# ---- 短信验证码（V1.4）：发送频控 + 一次性校验 ----
+
+SMS_SCENE_TEXT = {2: "登录", 3: "找回密码"}
+
+
+def sms_send(db: Session, phone: str, scene: int) -> dict:
+    """发送验证码：60s 频控 + 日限额 + 手机号注册状态预校验；dev 模式响应带 debug_code。"""
+    from app.modules.account import sms as sms_provider
+
+    registered = db.execute(select(User.id).where(User.phone == phone)).scalar() is not None
+    if scene in (2, 3) and not registered:
+        raise BizError(ErrCode.BAD_REQUEST, "该手机号未注册，请先注册")
+
+    now = datetime.now()
+    # 频控：同手机号同场景 60s 内只能发一条
+    last = (
+        db.execute(
+            select(SmsCode.created_at)
+            .where(SmsCode.phone == phone, SmsCode.scene == scene)
+            .order_by(SmsCode.id.desc())
+            .limit(1)
+        )
+        .scalar()
+    )
+    if last is not None and now - last < timedelta(seconds=settings.SMS_SEND_INTERVAL_SECONDS):
+        raise BizError(ErrCode.SMS_TOO_FREQUENT, f"发送过于频繁，请 {settings.SMS_SEND_INTERVAL_SECONDS} 秒后再试")
+
+    # 日限额：同手机号当日（全场景）上限 SMS_DAILY_LIMIT
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    sent_today = db.execute(
+        select(SmsCode.id).where(SmsCode.phone == phone, SmsCode.created_at >= today_start)
+    ).all()
+    if len(sent_today) >= settings.SMS_DAILY_LIMIT:
+        raise BizError(ErrCode.SMS_DAILY_LIMIT, "当日验证码发送次数已达上限，请明日再试")
+
+    code = settings.SMS_DEV_FIXED_CODE or f"{secrets.randbelow(1000000):06d}"
+    sms_provider.send(phone, code)  # 发送失败抛异常 → 不落库，可立即重试
+
+    db.add(
+        SmsCode(
+            phone=phone,
+            code=code,
+            scene=scene,
+            expired_at=now + timedelta(minutes=settings.SMS_CODE_TTL_MINUTES),
+        )
+    )
+    db.commit()
+
+    data: dict = {"scene": scene}
+    if settings.SMS_PROVIDER == "dev":  # 真实 provider 永不回传验证码
+        data["debug_code"] = code
+    return data
+
+
+def _verify_sms_code(db: Session, phone: str, code: str, scene: int) -> None:
+    """校验并消耗验证码：最新一条未使用记录，匹配且未过期；一次性（used=1）。"""
+    row = (
+        db.execute(
+            select(SmsCode)
+            .where(SmsCode.phone == phone, SmsCode.scene == scene, SmsCode.used == 0)
+            .order_by(SmsCode.id.desc())
+            .limit(1)
+        )
+        .scalar()
+    )
+    if (
+        row is None
+        or row.code != code
+        or row.expired_at < datetime.now()
+    ):
+        raise BizError(ErrCode.SMS_CODE_INVALID, "验证码错误或已失效，请重新获取")
+    row.used = 1
+    db.flush()
+
+
+def sms_login(db: Session, phone: str, code: str) -> User:
+    """短信验证码登录：校验码 → 封禁检查 → 更新 last_login_at。"""
+    _verify_sms_code(db, phone, code, scene=2)
+    user = db.execute(select(User).where(User.phone == phone)).scalar_one_or_none()
+    if user is None or user.deleted_at is not None:
+        raise BizError(ErrCode.BAD_REQUEST, "该手机号未注册，请先注册")
+    if user.status == 1:
+        until = user.banned_until.strftime("%Y-%m-%d %H:%M") if user.banned_until else "永久"
+        raise BizError(ErrCode.ACCOUNT_BANNED, f"账号已被封禁（{until}）")
+    user.last_login_at = datetime.now(timezone.utc)
+    db.commit()
+    return user
+
+
+def reset_password(db: Session, phone: str, code: str, new_password: str) -> None:
+    """找回密码：校验码 → 重置密码哈希（重置后旧密码立即失效）。"""
+    _verify_sms_code(db, phone, code, scene=3)
+    user = db.execute(select(User).where(User.phone == phone)).scalar_one_or_none()
+    if user is None or user.deleted_at is not None:
+        raise BizError(ErrCode.BAD_REQUEST, "该手机号未注册")
+    user.password_hash = hash_password(new_password)
+    db.commit()

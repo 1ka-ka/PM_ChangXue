@@ -21,6 +21,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
 mysql = ["pymysql>=1.1"]
+sms = ["alibabacloud-dysmsapi20170525>=3.0"]
 
 [build-system]
 requires = ["setuptools>=68"]

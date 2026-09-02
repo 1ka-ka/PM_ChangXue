@@ -49,5 +49,16 @@ class Settings(BaseSettings):
     LLM_TIMEOUT_SECONDS: int = 10
     LLM_MAX_RETRIES: int = 2  # 首次 + 重试次数
 
+    # ---- 短信验证码（V1.4；dev 零依赖联调，aliyun 需 .env 配 Key + pip 装 SDK）----
+    SMS_PROVIDER: str = "dev"  # dev（验证码写日志）/ aliyun
+    SMS_CODE_TTL_MINUTES: int = 5
+    SMS_SEND_INTERVAL_SECONDS: int = 60  # 同手机号同场景发送间隔
+    SMS_DAILY_LIMIT: int = 10  # 同手机号每日发送上限
+    SMS_DEV_FIXED_CODE: str = ""  # dev 固定验证码（空=随机生成；联调可固定）
+    SMS_ALIYUN_ACCESS_KEY_ID: str = ""
+    SMS_ALIYUN_ACCESS_KEY_SECRET: str = ""
+    SMS_ALIYUN_SIGN_NAME: str = ""
+    SMS_ALIYUN_TEMPLATE_CODE: str = ""
+
 
 settings = Settings()

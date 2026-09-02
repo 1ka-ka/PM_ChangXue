@@ -28,6 +28,7 @@ class ErrCode:
     BAD_CREDENTIALS = 40101  # 账号或密码错误
     TOKEN_INVALID = 40102  # 未登录或 token 失效
     ACCOUNT_BANNED = 40103  # 账号已被封禁
+    SMS_CODE_INVALID = 40104  # 验证码错误或已失效（V1.4）
 
     # ---- 403xx 权限 ----
     FORBIDDEN = 40301  # 无权操作（非资源所有者）
@@ -47,6 +48,8 @@ class ErrCode:
     REPORT_HANDLED = 40911  # 举报已被处理
     RECALL_EXCEED_BALANCE = 40912  # 追回积分超余额（追回至 0，流水记实际值）
     LOW_QUALITY_ANSWER = 40913  # AI 判定回答质量过低（V1.3）
+    SMS_TOO_FREQUENT = 40914  # 验证码发送过于频繁（60s 内，V1.4）
+    SMS_DAILY_LIMIT = 40915  # 验证码当日发送次数超限（V1.4）
 
     # ---- 500xx 服务器 ----
     INTERNAL = 50001

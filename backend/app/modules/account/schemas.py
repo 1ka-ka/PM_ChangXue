@@ -14,6 +14,22 @@ class LoginIn(BaseModel):
     password: str
 
 
+class SmsSendIn(BaseModel):
+    phone: str = Field(min_length=11, max_length=11, pattern=r"^1\d{10}$")
+    scene: int = Field(ge=2, le=3)  # 2登录 3找回密码（V1.4）
+
+
+class SmsLoginIn(BaseModel):
+    phone: str = Field(min_length=11, max_length=11, pattern=r"^1\d{10}$")
+    code: str = Field(min_length=4, max_length=8)
+
+
+class ResetPasswordIn(BaseModel):
+    phone: str = Field(min_length=11, max_length=11, pattern=r"^1\d{10}$")
+    code: str = Field(min_length=4, max_length=8)
+    new_password: str = Field(min_length=8, max_length=64)
+
+
 class ProfileUpdateIn(BaseModel):
     nickname: str | None = Field(default=None, min_length=1, max_length=20)
     avatar: str | None = Field(default=None, max_length=255)

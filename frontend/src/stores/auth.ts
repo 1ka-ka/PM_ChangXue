@@ -50,6 +50,11 @@ export const useAuthStore = defineStore('auth', {
       this.setToken(r.token)
       await this.fetchMe()
     },
+    async smsLogin(phone: string, code: string) {
+      const r = await post<{ token: string }>('/auth/sms/login', { phone, code })
+      this.setToken(r.token)
+      await this.fetchMe()
+    },
     async register(phone: string, password: string, nickname: string) {
       const r = await post<{ token: string }>('/auth/register', {
         phone,

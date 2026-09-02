@@ -49,6 +49,26 @@ class CreditAccount(Base):
     )
 
 
+class SmsCode(Base):
+    """短信验证码（V1.4）：一次性使用，验证通过即置 used=1。"""
+
+    __tablename__ = "sms_code"
+
+    id: Mapped[int] = mapped_column(BigInt, primary_key=True, autoincrement=True)
+    phone: Mapped[str] = mapped_column(String(20), nullable=False)
+    code: Mapped[str] = mapped_column(String(8), nullable=False)
+    scene: Mapped[int] = mapped_column(SmallInteger, nullable=False)  # 2登录 3找回密码
+    used: Mapped[int] = mapped_column(SmallInteger, default=0)  # 0未用 1已用
+    expired_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, server_default=func.now())
+
+    __table_args__ = (
+        Index("idx_sms_phone_scene", "phone", "scene"),
+        Index("idx_sms_phone_created", "phone", "created_at"),  # 日限额统计
+        {"comment": "短信验证码：60s 频控 + 日限额 + TTL 过期"},
+    )
+
+
 class CreditLog(Base):
     __tablename__ = "credit_log"
 

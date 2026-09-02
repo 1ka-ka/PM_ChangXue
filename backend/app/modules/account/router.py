@@ -12,7 +12,14 @@ from app.core.response import ok
 from app.core.security import create_token, decode_token
 from app.models import User
 from app.modules.account import service
-from app.modules.account.schemas import LoginIn, ProfileUpdateIn, RegisterIn
+from app.modules.account.schemas import (
+    LoginIn,
+    ProfileUpdateIn,
+    RegisterIn,
+    ResetPasswordIn,
+    SmsLoginIn,
+    SmsSendIn,
+)
 
 router = APIRouter()
 _bearer = HTTPBearer(auto_error=False)
@@ -44,6 +51,26 @@ def register(body: RegisterIn, db: Session = Depends(get_db)):
 def login(body: LoginIn, db: Session = Depends(get_db)):
     user = service.login(db, body.phone, body.password)
     return ok({"token": create_token(user.id), "user": service.brief(user)})
+
+
+# ---- 短信验证码（V1.4）：发送 / 短信登录 / 找回密码 ----
+
+
+@router.post("/auth/sms/send")
+def sms_send(body: SmsSendIn, db: Session = Depends(get_db)):
+    return ok(service.sms_send(db, body.phone, body.scene))
+
+
+@router.post("/auth/sms/login")
+def sms_login(body: SmsLoginIn, db: Session = Depends(get_db)):
+    user = service.sms_login(db, body.phone, body.code)
+    return ok({"token": create_token(user.id), "user": service.brief(user)})
+
+
+@router.post("/auth/reset-password")
+def reset_password(body: ResetPasswordIn, db: Session = Depends(get_db)):
+    service.reset_password(db, body.phone, body.code, body.new_password)
+    return ok(None)
 
 
 @router.get("/auth/me")
