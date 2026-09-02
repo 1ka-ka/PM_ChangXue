@@ -273,3 +273,4 @@ set_best(): 校验目标 is_accepted → 事务内调整 is_best 标记；无任
 | 日期 | 版本 | 变更内容 | 迭代原因 |
 | --- | --- | --- | --- |
 | 2026-09-01 | V1.0 草案 | 全文创建：选型方案 A、分层架构、模块划分、数据模型、LLM 契约、关键机制 | MVP 开发启动前定稿 |
+| 2026-09-02 | V1.1 | §7.1 补充约束：事务内禁止嵌套独立 Session（appconfig 查询必须复用当前 db 会话） | S3 实测发现：StaticPool 共享连接下嵌套 Session close() 触发 ROLLBACK，回滚外层未提交事务（StaleDataError） |

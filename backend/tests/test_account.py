@@ -8,7 +8,7 @@ from app.core.database import SessionLocal
 from app.models import CreditAccount, CreditLog, User
 
 PASSWORD = "password123"
-_seq = iter(range(1000))
+_seq = iter(range(1_000_000, 2_000_000))
 
 
 def _unique_phone() -> str:
