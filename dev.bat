@@ -1,47 +1,47 @@
 @echo off
-chcp 65001 >nul
-title ç•…å­¦ç¤¾åŒº - ä¸€é”®å¼€å‘çŽ¯å¢ƒ
+REM ±¾ÎÄ¼þ±ØÐë±£³Ö ANSI(GBK) ±àÂë£¬cmd Ä¬ÈÏ´úÂëÒ³²ÅÄÜÕýÈ·ÏÔÊ¾ÖÐÎÄ£¨Îð×ª UTF-8£©
+title ³©Ñ§ÉçÇø - Ò»¼ü¿ª·¢»·¾³
 color 0A
 
 echo ============================================
-echo   ç•…å­¦ç¤¾åŒº ä¸€é”®å¼€å‘å¯åŠ¨ï¼ˆæ”¯æŒçƒ­æ›´æ–°ï¼‰
-echo   åŽç«¯: http://127.0.0.1:8000  (uvicorn --reload)
-echo   å‰ç«¯: http://localhost:5173  (vite çƒ­æ›´æ–°)
+echo   ³©Ñ§ÉçÇø Ò»¼ü¿ª·¢Æô¶¯£¨Ö§³ÖÈÈ¸üÐÂ£©
+echo   ºó¶Ë: http://127.0.0.1:8000  (uvicorn --reload)
+echo   Ç°¶Ë: http://localhost:5173  (vite ÈÈ¸üÐÂ)
 echo ============================================
 echo.
 
-REM ---- çŽ¯å¢ƒè‡ªæ£€ ----
+REM ---- »·¾³×Ô¼ì ----
 if not exist "backend\.venv\Scripts\python.exe" (
     color 0C
-    echo [é”™è¯¯] æœªæ‰¾åˆ°åŽç«¯è™šæ‹ŸçŽ¯å¢ƒ backend\.venv
-    echo è¯·å…ˆæ‰§è¡Œ: cd backend ^&^& python -m venv .venv ^&^& .venv\Scripts\pip install fastapi uvicorn sqlalchemy alembic pydantic-settings python-jose passlib bcrypt pillow python-multipart apscheduler httpx pytest
+    echo [´íÎó] Î´ÕÒµ½ºó¶ËÐéÄâ»·¾³ backend\.venv
+    echo ÇëÏÈÖ´ÐÐ: cd backend ^&^& python -m venv .venv ^&^& .venv\Scripts\pip install fastapi uvicorn sqlalchemy alembic pydantic-settings python-jose passlib bcrypt pillow python-multipart apscheduler httpx pytest
     pause
     exit /b 1
 )
 
 if not exist "frontend\node_modules" (
     color 0C
-    echo [é”™è¯¯] æœªæ‰¾åˆ°å‰ç«¯ä¾èµ– frontend\node_modules
-    echo è¯·å…ˆæ‰§è¡Œ: cd frontend ^&^& npm ci --legacy-peer-deps
+    echo [´íÎó] Î´ÕÒµ½Ç°¶ËÒÀÀµ frontend\node_modules
+    echo ÇëÏÈÖ´ÐÐ: cd frontend ^&^& npm ci --legacy-peer-deps
     pause
     exit /b 1
 )
 
-echo [1/3] å¯åŠ¨åŽç«¯ï¼ˆçƒ­æ›´æ–°ï¼Œdev çŽ¯å¢ƒè‡ªåŠ¨å»ºè¡¨+seed æ ‡ç­¾ï¼‰...
-start "ç•…å­¦-åŽç«¯8000" cmd /k "cd /d %~dp0backend && .venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000"
+echo [1/3] Æô¶¯ºó¶Ë£¨ÈÈ¸üÐÂ£¬dev »·¾³×Ô¶¯½¨±í+seed ±êÇ©£©...
+start "³©Ñ§-ºó¶Ë8000" cmd /k "cd /d %~dp0backend && .venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000"
 
-echo [2/3] ç­‰å¾…åŽç«¯å°±ç»ª...
+echo [2/3] µÈ´ýºó¶Ë¾ÍÐ÷...
 timeout /t 3 /nobreak >nul
 
-echo [3/3] å¯åŠ¨å‰ç«¯ï¼ˆVite çƒ­æ›´æ–°ï¼‰...
-start "ç•…å­¦-å‰ç«¯5173" cmd /k "cd /d %~dp0frontend && npm run dev"
+echo [3/3] Æô¶¯Ç°¶Ë£¨Vite ÈÈ¸üÐÂ£©...
+start "³©Ñ§-Ç°¶Ë5173" cmd /k "cd /d %~dp0frontend && npm run dev"
 
 timeout /t 2 /nobreak >nul
 start http://localhost:5173
 
 echo.
-echo å·²å¯åŠ¨ï¼æµè§ˆå™¨å°†è‡ªåŠ¨æ‰“å¼€ http://localhost:5173
-echo åœæ­¢æœåŠ¡ï¼šå…³é—­å¼¹å‡ºçš„ä¸¤ä¸ªé»‘è‰²çª—å£å³å¯
-echo æœ¬çª—å£å¯å®‰å…¨å…³é—­ï¼ˆä¸å½±å“æœåŠ¡ï¼‰
+echo ÒÑÆô¶¯£¡ä¯ÀÀÆ÷½«×Ô¶¯´ò¿ª http://localhost:5173
+echo Í£Ö¹·þÎñ£º¹Ø±Õµ¯³öµÄÁ½¸öºÚÉ«´°¿Ú¼´¿É
+echo ±¾´°¿Ú¿É°²È«¹Ø±Õ£¨²»Ó°Ïì·þÎñ£©
 echo.
 pause

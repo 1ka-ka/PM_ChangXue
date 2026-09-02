@@ -45,6 +45,18 @@ def create_app() -> FastAPI:
 
     app = FastAPI(title="畅学社区 API", version="0.1.0", lifespan=lifespan)
 
+    # 根路径：直接访问 8000 端口时给出引导，避免 404 困惑（前端页面在 Vite 5173）
+    @app.get("/", include_in_schema=False)
+    async def root() -> JSONResponse:
+        return JSONResponse(
+            status_code=200,
+            content={
+                "code": 0,
+                "msg": "畅学社区 API 运行中。接口文档: /docs；开发模式前端页面: http://localhost:5173",
+                "data": None,
+            },
+        )
+
     # CORS：本地前端 Vite 开发服务器
     app.add_middleware(
         CORSMiddleware,
