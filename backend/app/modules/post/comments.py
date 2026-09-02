@@ -9,19 +9,20 @@ from app.core.config import settings
 from app.core.exceptions import BizError, ErrCode
 from app.core.sensitive import contains_sensitive
 from app.models import Answer, Comment, Post, User
+from app.modules.notify import service as notify_service
 from app.modules.post import service as post_service
 
 
 def _validate_target(db: Session, target_type: int, target_id: int):
-    """评论目标存在性：1 帖子 / 2 回答。"""
+    """评论目标存在性：1 帖子 / 2 回答；返回目标对象。"""
     if target_type == 1:
-        post_service.get_post_or_404(db, target_id)
-    elif target_type == 2:
+        return post_service.get_post_or_404(db, target_id)
+    if target_type == 2:
         a = db.get(Answer, target_id)
         if a is None or a.deleted_at is not None:
             raise BizError(ErrCode.NOT_FOUND, "回答不存在或已删除")
-    else:
-        raise BizError(ErrCode.BAD_REQUEST, "评论目标类型无效")
+        return a
+    raise BizError(ErrCode.BAD_REQUEST, "评论目标类型无效")
 
 
 def _comment_dict(db: Session, c: Comment) -> dict:
@@ -53,7 +54,7 @@ def create_comment(
     reply_to_user_id: int | None,
 ) -> dict:
     """发表评论：40909 parent 必须指向根评论（二层封顶）。"""
-    _validate_target(db, target_type, target_id)
+    target = _validate_target(db, target_type, target_id)
     if contains_sensitive(content):
         raise BizError(ErrCode.SENSITIVE_WORD, "内容含违禁词")
     if not content or len(content) > settings.COMMENT_MAX_LEN:
@@ -76,6 +77,13 @@ def create_comment(
         content=content,
     )
     db.add(c)
+    # 通知：根评论 → 被评论对象作者（type 2）；回复 → 根评论作者与被回复人（type 3）
+    if parent_id is None:
+        notify_service.push(db, target.author_id, 2, user.id, target_type, target_id)
+    else:
+        notify_service.push(db, parent.author_id, 3, user.id, 3, parent_id)
+        if reply_to_user_id and reply_to_user_id != parent.author_id:
+            notify_service.push(db, reply_to_user_id, 3, user.id, 3, parent_id)
     db.commit()
     return _comment_dict(db, c)
 
@@ -94,6 +102,10 @@ def delete_comment(db: Session, user: User, comment_id: int) -> None:
     ).scalars().all()
     for r in replies:
         r.deleted_at = now
+    # 指向该评论（被回复）的通知失效；其回复的通知随回复评论 id 分别失效
+    notify_service.invalidate(db, 3, comment_id)
+    for r in replies:
+        notify_service.invalidate(db, 3, r.id)
     db.commit()
 
 

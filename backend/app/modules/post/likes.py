@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import BizError, ErrCode
 from app.models import Answer, Comment, Favorite, LikeRecord, Post, User
+from app.modules.notify import service as notify_service
 from app.modules.post import service as post_service
 
 
@@ -27,7 +28,7 @@ def _load_target(db: Session, target_type: int, target_id: int):
 
 
 def toggle_like(db: Session, user: User, target_type: int, target_id: int) -> dict:
-    """点赞/取消：存在记录则删除并减计数，否则插入并加计数。"""
+    """点赞/取消：存在记录则删除并减计数，否则插入并加计数；点赞时通知作者（type 5）。"""
     target, count_field = _load_target(db, target_type, target_id)
     existing = db.execute(
         select(LikeRecord).where(
@@ -44,6 +45,7 @@ def toggle_like(db: Session, user: User, target_type: int, target_id: int) -> di
         db.add(LikeRecord(user_id=user.id, target_type=target_type, target_id=target_id))
         setattr(target, count_field, (getattr(target, count_field) or 0) + 1)
         liked = True
+        notify_service.push(db, target.author_id, 5, user.id, target_type, target_id)
     db.commit()
     return {"liked": liked, "like_count": getattr(target, count_field)}
 

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import BizError, ErrCode
 from app.core.sensitive import contains_sensitive
 from app.models import Answer, Post, User
+from app.modules.notify import service as notify_service
 from app.modules.post import service as post_service
 
 
@@ -55,6 +56,7 @@ def create_answer(db: Session, user: User, post_id: int, content: str) -> dict:
     db.add(a)
     post.answer_count += 1
     post.last_answer_at = datetime.now()
+    notify_service.push(db, post.author_id, 1, user.id, 1, post_id)  # 被回答
     db.commit()
     return _answer_dict(db, a, user)
 
@@ -84,6 +86,7 @@ def delete_answer(db: Session, user: User, answer_id: int) -> None:
     post = db.get(Post, a.post_id)
     if post is not None and post.answer_count > 0:
         post.answer_count -= 1
+    notify_service.invalidate(db, 2, answer_id)  # 指向该回答的通知全部失效
     db.commit()
 
 

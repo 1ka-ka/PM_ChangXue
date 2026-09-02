@@ -10,6 +10,7 @@ from app.core.exceptions import BizError, ErrCode
 from app.core.sensitive import contains_sensitive
 from app.models import Favorite, LikeRecord, Post, PostTag, Tag, User
 from app.modules.credit import service as credit_service
+from app.modules.notify import service as notify_service
 from app.modules.credit.sources import CreditSource
 from app.modules.post.schemas import PostCard, PostDetail, TagItem
 
@@ -179,6 +180,7 @@ def delete_post(db: Session, user: User, post_id: int) -> None:
     if post.author_id != user.id:
         raise BizError(ErrCode.FORBIDDEN, "仅帖子作者可删除")
     post.deleted_at = datetime.now()
+    notify_service.invalidate(db, 1, post_id)  # 指向该帖的通知（被回答/被评论/被点赞）失效
     db.commit()
 
 

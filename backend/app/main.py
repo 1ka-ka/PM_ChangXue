@@ -16,10 +16,24 @@ from app.modules.post.interaction_router import router as interaction_router
 from app.modules.accept.router import router as accept_router
 from app.modules.feed.router import router as feed_router
 from app.modules.search.router import router as search_router
+from app.modules.notify.router import router as notify_router
+from app.modules.rank.router import router as rank_router
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="畅学社区 API", version="0.1.0")
+    from contextlib import asynccontextmanager
+
+    from app.jobs.settle_rank import start_scheduler
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI):
+        # 定时任务：榜单结算（测试环境跳过，避免与内存库冲突）
+        scheduler = start_scheduler(settings.APP_ENV)
+        yield
+        if scheduler is not None:
+            scheduler.shutdown(wait=False)
+
+    app = FastAPI(title="畅学社区 API", version="0.1.0", lifespan=lifespan)
 
     # CORS：本地前端 Vite 开发服务器
     app.add_middleware(
@@ -39,6 +53,8 @@ def create_app() -> FastAPI:
     app.include_router(accept_router, prefix="/api")
     app.include_router(feed_router, prefix="/api")
     app.include_router(search_router, prefix="/api")
+    app.include_router(notify_router, prefix="/api")
+    app.include_router(rank_router, prefix="/api")
 
     # 上传文件静态服务（头像/帖子图片）
     from pathlib import Path

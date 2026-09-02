@@ -21,12 +21,12 @@ from app.models import (
     Answer,
     GratitudeStat,
     KnowledgeItem,
-    Notification,
     Post,
     User,
 )
 from app.modules.credit import service as credit_service
 from app.modules.credit.sources import CreditSource
+from app.modules.notify import service as notify_service
 
 
 def _gratitude_keys() -> list[tuple[int, str]]:
@@ -103,15 +103,7 @@ def accept(db: Session, user: User, answer_id: int) -> dict:
         note=f"回答被采纳（帖子 {post.id}）",
     )
     _add_gratitude(db, answer.author_id, 30)
-    db.add(
-        Notification(
-            user_id=answer.author_id,  # 接收者
-            type=4,  # 被采纳
-            actor_id=user.id,
-            target_type=2,
-            target_id=answer.id,
-        )
-    )
+    notify_service.push(db, answer.author_id, 4, user.id, 2, answer.id)  # 被采纳
     db.commit()
     return {
         "post_status": post.status,
