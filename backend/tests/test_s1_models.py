@@ -94,8 +94,11 @@ def test_seed_tags():
     }
     run()  # 幂等
     with SessionLocal() as db:
-        count = len(db.execute(select(Tag)).scalars().all())
-    assert count == 12
+        # 整跑时其他测试模块可能增删标签，只验证 seed 12 个无重复（幂等未翻倍）
+        names = [n for (n,) in db.execute(select(Tag.name))]
+    seeds = ["计算机", "数学", "物理学", "化学", "生物学", "经济学",
+             "法学", "外语", "文学", "医学", "工学", "考研"]
+    assert all(names.count(s) == 1 for s in seeds)
 
 
 def test_user_theme_config_nullable():

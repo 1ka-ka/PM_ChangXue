@@ -18,6 +18,8 @@ from app.modules.feed.router import router as feed_router
 from app.modules.search.router import router as search_router
 from app.modules.notify.router import router as notify_router
 from app.modules.rank.router import router as rank_router
+from app.modules.moderation.router import router as moderation_router
+from app.modules.admin.router import router as admin_router
 
 
 def create_app() -> FastAPI:
@@ -55,6 +57,8 @@ def create_app() -> FastAPI:
     app.include_router(search_router, prefix="/api")
     app.include_router(notify_router, prefix="/api")
     app.include_router(rank_router, prefix="/api")
+    app.include_router(moderation_router, prefix="/api")
+    app.include_router(admin_router, prefix="/api")
 
     # 上传文件静态服务（头像/帖子图片）
     from pathlib import Path

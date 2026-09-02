@@ -26,7 +26,8 @@ def _user(client, nickname) -> dict:
 def _tag_id() -> int:
     seed_tags()
     with SessionLocal() as db:
-        return db.execute(select(Tag.id)).scalar()
+        # 只取启用标签（整跑时其他模块可能停用标签，无序查询可能命中）
+        return db.execute(select(Tag.id).where(Tag.enabled == 1).order_by(Tag.id)).scalar()
 
 
 def _post(client, h, title, content="内容", reward=0, tag_id=None) -> int:
@@ -187,7 +188,11 @@ def test_search_empty_and_missing_params(client):
 def test_search_tag_filter(client):
     """标签筛选：仅返回该标签下帖子。"""
     with SessionLocal() as db:
-        tag_ids = db.execute(select(Tag.id)).scalars().all()
+        tag_ids = (
+            db.execute(select(Tag.id).where(Tag.enabled == 1).order_by(Tag.id))
+            .scalars()
+            .all()
+        )
     t1, t2 = tag_ids[0], tag_ids[1]
     h = _user(client, "标签搜索用户")
     in_tag = _post(client, h, "标签筛选目标帖 uniqueTag", tag_id=t1)

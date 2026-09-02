@@ -23,7 +23,8 @@ def _user(client, nickname) -> dict:
 def _tag_id() -> int:
     seed_tags()
     with SessionLocal() as db:
-        return db.execute(select(Tag.id)).scalar()
+        # 只取启用标签（整跑时其他模块可能停用标签，无序查询可能命中）
+        return db.execute(select(Tag.id).where(Tag.enabled == 1).order_by(Tag.id)).scalar()
 
 
 def _post(client, h, title) -> int:

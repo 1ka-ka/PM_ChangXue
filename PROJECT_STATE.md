@@ -37,7 +37,7 @@
 | S6  | 采纳状态机与知识库              | ✅ 完成（2026-09-02） | AcceptService.accept 单事务 8 步（首采置已解决+knowledge_item+credit.grant(30)+感谢值三周期+通知）；采纳上限 3（40901）/重复 40907/非提问者 40301/不存在 40002；set_best 仅已采纳（40908）先清后置零账务；日封顶截断积分但感谢值照常；pytest 67/67 全绿 |
 | S7  | 广场三 Tab 与搜索降级          | ✅ 完成（2026-09-02） | feed 模块（latest/unsolved/recommend 三 Tab；推荐分 heat+reward/10-decay，权重进 app\_config；悬赏加权、14 天衰减-50）；PostCard 增加 no\_answer\_days 标注；search 模块（知识库优先→降级广场写 search\_degrade 埋点→source=empty 两级空结果；标题/内容模糊+标签筛选）；pytest 74/74 全绿 |
 | S8  | 通知中心与助人榜结算             | ✅ 完成（2026-09-02） | notify 模块（五类通知生成/列表/未读计数 99+语义值/全部已读；软删 invalid 联动补齐 S4/S5）；rank 模块（结算 gratitude→rank\_snapshot 先清后写幂等；当期未结算回落上期+settling）；APScheduler 周一/月初 00:05 结算+失败重试 3 次；pytest 81/81 全绿 |
-| S9  | 举报与管理后台                | ⬜ 未开始 | -  |
+| S9  | 举报与管理后台                | ✅ 完成（2026-09-02） | moderation（举报提交 40903 去重/目标校验 40002/detail 过敏感词）；admin（举报队列含快照/作者/举报次数；处置四动作 delete 级联软删+通知 invalid/ban 1,7,0 永久/recall 钳制至 0 流水记实际值/dismiss；40911 已处理；admin\_action\_log 全留痕；标签管理增改停用；操作日志；最简看板）；TC-softdel 三处不可见验证；pytest 90/90 全绿 |
 | S10 | 埋点与 LLM 网关契约（后端收官全量回归） | ⬜ 未开始 | -  |
 | S11 | 前端页面（4 子增量）            | ⬜ 未开始 | -  |
 | S12 | 端到端回归与部署（MVP 验收）       | ⬜ 未开始 | -  |
@@ -74,12 +74,11 @@
 
 ## 4. 下一步
 
-**启动 S9：举报与管理后台**（交付文档 §3.S9，接口 30-38）
+**启动 S10：埋点与 LLM 网关契约**（交付文档 §3.S10，后端收官）
 
-- moderation 模块：举报提交（40903 重复举报）/ 我的举报列表
-- admin 模块：举报队列（分页待处理）/ 处置动作（删内容/封禁/驳回）/ 操作日志留痕 / 积分追回（credit.recall）
-- 标签管理（启停）/ 用户列表与封禁管理
-- TC-moderation/admin 全组通过后更新本文件
+- tracking 模块：POST /events/batch（≤20 条/次、204、处理失败静默）+ 简单限流
+- gateway/contracts.py：5 类场景 Pydantic 契约（summary/ref\_answer/reliability/quality/moderation，字段见 ARCH §6）+ 契约测试
+- 后端全量回归后更新本文件
 
 ## 5. 待办决策队列（不阻塞 MVP，按期评审）
 
@@ -104,4 +103,5 @@
 | 2026-09-02 | **S6 完成**：accept 模块（accept 单事务 8 步编排：校验→is\_accepted→首采置已解决+knowledge\_item→credit.grant(30)→感谢值周/月/累计三周期→通知；40901 上限/40907 重复/40301 权限；set\_best 40908 先清后置零账务）；pytest 67/67 全绿；**测试坑点**：回答列表按 最佳>采纳>点赞>时间倒序 排序，测试取"某回答者的回答"必须按 author\_id 定位而非列表下标 | \[待补充] |
 | 2026-09-02 | **S7 完成**：feed 模块（三 Tab：latest=id 倒序 / unsolved=待解决按推荐分 / recommend=推荐分倒序；推荐分公式 heat+reward/10-decay，权重参数 feed.* 进 app\_config 可运行时覆盖；decay 仅作用于待解决帖且超 DECAY\_DAYS 天 -50）；PostCard 新增 no\_answer\_days（待解决帖超 7 天无新回答标注，基准=last\_answer\_at 或 created\_at）；search 模块（knowledge\_item JOIN post 标题模糊优先→未命中降级广场标题/内容模糊并写 search\_degrade 埋点（关键词+广场结果数）→均无 source=empty；q/tag\_id 至少一项否则 40001；LIKE autoescape 防注入）；pytest 74/74 全绿 | \[待补充] |
 | 2026-09-02 | **S8 完成**：notify 模块（push 五类通知统一入口：被回答/被评论/被回复/被采纳/被点赞，自互动不通知、仅点赞时通知；invalidate 软删联动——删帖(1)/删回答(2)/删评论(3 含级联回复)对应通知置 invalid 且不计未读；未读数>99 语义值 100）；S4/S5/S6 全部通知生成点接入（accept 改走 push）；rank 模块（settle 先清后写幂等+TOP N；查询当期无快照回落上期+settling: true）；jobs/settle\_rank（APScheduler 周一/月初 00:05，失败重试 3 次沿用上期；main lifespan 启动，test 环境跳过）；pytest 81/81 全绿；**测试坑点**：共享内存库下本周感谢值并列 30 的用户可能超 TOP N 截断，榜单断言须拉开差距（多采纳造 90/60）或按 user\_id 过滤 | \[待补充] |
+| 2026-09-02 | **S9 完成**：moderation 模块（举报提交：目标校验 40002/同用户同目标 40903 唯一键兜底/detail 过敏感词）；admin 模块（举报队列含内容快照+作者+同目标举报次数；处置四动作统一入口 action=delete/ban/recall\_credit/dismiss：delete 级联软删（帖→回答→评论全链+通知 invalid）/ban 封作者 1,7,0 永久/recall 复用 credit.recall 钳制至 0 流水记实际值/dismiss 驳回 status=2；40911 举报已处理；admin\_action\_log 全动作留痕；标签管理 GET/POST/PUT（重名 40001、停用后发帖 40001）；操作日志过滤查询；看板 stats 四指标）；TC-softdel 验证删帖后广场/搜索/知识库三处不可见；实现偏差（P0）：管理员删内容不回退帖子 status/知识库条目、处置不发站内通知（通知类型仅 1-5）；**测试坑点**：① page\_size 上限 50 传 100 会 422 ② 封号后须先取 uid 再处置（token 立即失效）③ 无序 select(Tag.id) 在 SQLite 下按 name 索引序可能命中其他模块停用的标签，取标签必须 where enabled==1 order\_by id | \[待补充] |
 
