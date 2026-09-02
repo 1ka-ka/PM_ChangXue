@@ -4,10 +4,12 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import health
 from app.core.config import settings
 from app.core.exceptions import BizError, ErrCode
+from app.modules.account.router import router as account_router
 
 
 def create_app() -> FastAPI:
@@ -24,6 +26,14 @@ def create_app() -> FastAPI:
 
     # 路由注册（后续阶段在此追加各业务模块 router）
     app.include_router(health.router, prefix="/api")
+    app.include_router(account_router, prefix="/api")
+
+    # 上传文件静态服务（头像/帖子图片）
+    from pathlib import Path
+
+    upload_dir = Path(settings.UPLOAD_DIR)
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    app.mount("/uploads", StaticFiles(directory=str(upload_dir)), name="uploads")
 
     # ---- 全局异常处理：统一转响应信封（技术细节文档 §2.1/§2.2）----
 

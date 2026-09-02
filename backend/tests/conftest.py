@@ -6,6 +6,7 @@ import os
 os.environ["APP_ENV"] = "test"
 os.environ["DATABASE_URL"] = "sqlite://"  # 内存库
 os.environ["SECRET_KEY"] = "test-secret-key"
+os.environ["UPLOAD_DIR"] = "./uploads_test"  # 测试上传目录（.gitignore 覆盖 uploads* 不污染仓库）
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402

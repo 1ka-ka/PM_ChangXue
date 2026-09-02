@@ -47,7 +47,7 @@ def test_like_record_composite_pk():
 def test_credit_balance_nonnegative():
     """credit_account CHECK 约束：balance < 0 触发 IntegrityError。"""
     with SessionLocal() as db:
-        u = User(phone="13800000001", password_hash="x", nickname="t")
+        u = User(phone="15900000001", password_hash="x", nickname="t")
         db.add(u)
         db.flush()
         db.add(CreditAccount(user_id=u.id, balance=100))
@@ -101,7 +101,7 @@ def test_seed_tags():
 def test_user_theme_config_nullable():
     """user.theme_config：P0 恒 NULL（个性化接口预留字段可写可空）。"""
     with SessionLocal() as db:
-        u = User(phone="13800000002", password_hash="x", nickname="t2")
+        u = User(phone="15900000002", password_hash="x", nickname="t2")
         db.add(u)
         db.commit()
         assert u.theme_config is None

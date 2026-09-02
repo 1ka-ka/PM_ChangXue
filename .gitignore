@@ -12,6 +12,7 @@ venv/
 *.sqlite3
 backend/uploads/
 !backend/uploads/.gitkeep
+backend/uploads_test/
 
 # Node
 node_modules/
