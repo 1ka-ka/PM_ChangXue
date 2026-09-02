@@ -10,7 +10,16 @@ os.environ["SECRET_KEY"] = "test-secret-key"
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
+from app.core.database import Base, engine  # noqa: E402
 from app.main import app  # noqa: E402
+from app import models  # noqa: E402, F401  # 触发全部模型注册
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _create_tables():
+    """session 级建表：所有测试模块共享同一内存库结构。"""
+    Base.metadata.create_all(bind=engine)
+    yield
 
 
 @pytest.fixture()

@@ -5,11 +5,23 @@
 
 from collections.abc import Generator
 
-from sqlalchemy import create_engine
+from sqlalchemy import BigInteger, create_engine, types
 from sqlalchemy.pool import StaticPool
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app.core.config import settings
+
+
+class BigInt(types.TypeDecorator):
+    """跨方言大整型：MySQL 用 BIGINT；SQLite 用 INTEGER（否则主键无法 rowid 自增）。"""
+
+    impl = BigInteger
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == "sqlite":
+            return dialect.type_descriptor(types.Integer())
+        return dialect.type_descriptor(BigInteger())
 
 
 class Base(DeclarativeBase):
