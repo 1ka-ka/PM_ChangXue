@@ -96,6 +96,16 @@ def similar_of_post(
     return ok({"items": service.similar_posts(db, post.title, tag_ids, exclude_id=post_id, limit=limit)})
 
 
+@router.post("/posts/{post_id}/ai-answer")
+def ai_answer(
+    post_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """AI 参考回答（V1.3 ref_answer）：登录用户触发，结果缓存；仅供参考不可被采纳。"""
+    return ok(service.generate_ai_answer(db, user, post_id))
+
+
 @router.put("/posts/{post_id}")
 def update_post(
     post_id: int,

@@ -44,7 +44,9 @@ class Post(Base):
     like_count: Mapped[int] = mapped_column(Integer, default=0)
     last_answer_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
     accepted_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
-    ai_summary: Mapped[str | None] = mapped_column(String(200), default=None)  # P1 启用
+    ai_summary: Mapped[str | None] = mapped_column(String(200), default=None)  # V1.2 启用
+    ai_answer: Mapped[str | None] = mapped_column(Text, default=None)  # AI 参考回答（V1.3，缓存生成结果）
+    ai_answer_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)  # 生成时间
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
@@ -76,6 +78,8 @@ class Answer(Base):
     is_accepted: Mapped[int] = mapped_column(SmallInteger, default=0)
     is_best: Mapped[int] = mapped_column(SmallInteger, default=0)
     like_count: Mapped[int] = mapped_column(Integer, default=0)
+    ai_rel_score: Mapped[int | None] = mapped_column(Integer, default=None)  # AI 可靠性评分 0-100（V1.3，异步生成）
+    ai_rel_level: Mapped[str | None] = mapped_column(String(10), default=None)  # 高/中/存疑
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)

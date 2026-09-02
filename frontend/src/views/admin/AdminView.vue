@@ -20,6 +20,8 @@ interface ReportItem {
   reason: number
   detail: string | null
   status: 0 | 1 | 2
+  ai_level?: string | null // AI 违规分级 极高/高/低（V1.3，异步生成）
+  ai_violation_type?: string | null
   report_count: number
   created_at: string
 }
@@ -263,6 +265,15 @@ onMounted(() => {
               <el-tag size="small" effect="plain">{{ TARGET_TEXT[r.target_type] }} #{{ r.target_id }}</el-tag>
               <span class="reason">{{ REASON_TEXT[r.reason] || '其他' }}</span>
               <span v-if="r.detail" class="detail">"{{ r.detail }}"</span>
+              <!-- AI 违规分级（V1.3）：辅助分诊，不代表最终认定 -->
+              <el-tag
+                v-if="r.ai_level"
+                size="small"
+                effect="dark"
+                :type="r.ai_level === '极高' ? 'danger' : r.ai_level === '高' ? 'danger' : 'info'"
+              >
+                AI:{{ r.ai_level }}{{ r.ai_violation_type ? `·${r.ai_violation_type}` : '' }}
+              </el-tag>
               <el-tag size="small" :type="STATUS_TEXT[r.status].type">
                 {{ STATUS_TEXT[r.status].label }}
               </el-tag>

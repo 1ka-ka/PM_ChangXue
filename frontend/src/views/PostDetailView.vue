@@ -88,6 +88,26 @@ async function toggleFavorite() {
   ElMessage.success(r.favorited ? '已收藏' : '已取消收藏')
 }
 
+// 生成 AI 参考回答（V1.3）：登录触发，同步生成（约 10-30s），结果缓存
+const aiAnswerLoading = ref(false)
+
+async function generateAiAnswer() {
+  if (!auth.isLogged) {
+    router.push({ path: '/login', query: { redirect: route.fullPath } })
+    return
+  }
+  aiAnswerLoading.value = true
+  try {
+    await httpPost(`/posts/${route.params.id}/ai-answer`)
+    await load()
+    ElMessage.success('AI 参考回答已生成')
+  } catch (e) {
+    ElMessage.error(e instanceof ApiError ? e.message : '生成失败，请稍后再试')
+  } finally {
+    aiAnswerLoading.value = false
+  }
+}
+
 async function acceptAnswer(answerId: number) {
   try {
     await httpPost(`/answers/${answerId}/accept`)
@@ -187,6 +207,22 @@ function fmtTime(s: string) {
       <div class="cx-card">
         <h3 class="section-title">{{ post.answers.length }} 个回答</h3>
 
+        <!-- AI 参考回答（V1.3）：人答优先，无人回答时可触发 AI 兜底 -->
+        <div v-if="post.ai_answer" class="ai-ref-answer">
+          <div class="ai-head">
+            <el-icon><MagicStick /></el-icon>
+            <span>AI 参考回答</span>
+            <span class="ai-tip">由 AI 生成，仅供参考，不可被采纳</span>
+          </div>
+          <p class="ai-ref-text">{{ post.ai_answer }}</p>
+        </div>
+        <div v-else-if="!post.answers.length && auth.isLogged" class="ai-ref-trigger">
+          <el-button :loading="aiAnswerLoading" plain round @click="generateAiAnswer">
+            <el-icon v-if="!aiAnswerLoading"><MagicStick /></el-icon>
+            {{ aiAnswerLoading ? 'AI 正在思考，约需 10-30 秒…' : '暂无回答，生成 AI 参考回答' }}
+          </el-button>
+        </div>
+
         <div v-if="!post.answers.length" class="cx-empty">还没有回答，来抢第一个吧</div>
 
         <div v-for="a in post.answers" :key="a.id" class="answer">
@@ -201,6 +237,19 @@ function fmtTime(s: string) {
             <div class="badges">
               <el-tag v-if="a.is_best" type="success" effect="dark" size="small">最佳</el-tag>
               <el-tag v-else-if="a.is_accepted" type="success" effect="plain" size="small">已采纳</el-tag>
+              <!-- AI 可靠性徽标（V1.3）：异步生成，仅供参考 -->
+              <el-tooltip
+                v-if="a.ai_rel_level"
+                :content="`AI 可靠性评估：${a.ai_rel_score} 分（仅供参考，不代表官方认定）`"
+              >
+                <el-tag
+                  size="small"
+                  effect="plain"
+                  :type="a.ai_rel_level === '高' ? 'success' : a.ai_rel_level === '中' ? 'warning' : 'danger'"
+                >
+                  <el-icon><MagicStick /></el-icon>&nbsp;{{ a.ai_rel_level }}
+                </el-tag>
+              </el-tooltip>
             </div>
           </div>
 
@@ -355,6 +404,26 @@ function fmtTime(s: string) {
   color: #555;
   line-height: 1.7;
   font-size: 14px;
+}
+
+.ai-ref-answer {
+  margin: 4px 0 16px;
+  padding: 14px 16px;
+  border: 1px dashed #b3aef0;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(108, 92, 231, 0.04), rgba(162, 155, 254, 0.08));
+}
+
+.ai-ref-text {
+  margin: 10px 0 0;
+  color: #444;
+  line-height: 1.8;
+  font-size: 14px;
+  white-space: pre-wrap;
+}
+
+.ai-ref-trigger {
+  margin-bottom: 12px;
 }
 
 .images {

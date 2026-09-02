@@ -1,6 +1,9 @@
-"""互动路由：回答 14-16、评论 19-20、点赞/收藏 21-22 + 收藏列表（技术细节文档 §5.4/§5.5）。"""
+"""互动路由：回答 14-16、评论 19-20、点赞/收藏 21-22 + 收藏列表（技术细节文档 §5.4/§5.5）。
 
-from fastapi import APIRouter, Depends, Query
+V1.3：回答提交/编辑后异步生成 AI 可靠性评分（reliability 场景）。
+"""
+
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -23,20 +26,28 @@ class AnswerCreateIn(BaseModel):
 def create_answer(
     post_id: int,
     body: AnswerCreateIn,
+    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return ok(answers.create_answer(db, user, post_id, body.content))
+    data = answers.create_answer(db, user, post_id, body.content)
+    # V1.3：异步生成 AI 可靠性评分（LLM 关闭/失败时任务内部静默）
+    background_tasks.add_task(answers.generate_reliability_task, data["id"])
+    return ok(data)
 
 
 @router.put("/answers/{answer_id}")
 def update_answer(
     answer_id: int,
     body: AnswerCreateIn,
+    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return ok(answers.update_answer(db, user, answer_id, body.content))
+    data = answers.update_answer(db, user, answer_id, body.content)
+    # V1.3：内容已变化 → 重新生成可靠性评分
+    background_tasks.add_task(answers.generate_reliability_task, answer_id)
+    return ok(data)
 
 
 @router.delete("/answers/{answer_id}")

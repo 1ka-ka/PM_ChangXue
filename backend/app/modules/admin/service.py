@@ -108,6 +108,8 @@ def list_reports(db: Session, status: int | None, offset: int, limit: int) -> di
                 "reason": r.reason,
                 "detail": r.detail,
                 "status": r.status,
+                "ai_level": r.ai_level,  # V1.3：AI 违规分级（异步生成，未生成时 None）
+                "ai_violation_type": r.ai_violation_type,
                 "report_count": report_count,
                 "created_at": r.created_at,
             }

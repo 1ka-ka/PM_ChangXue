@@ -30,6 +30,7 @@ export interface PostDetail extends PostCard {
   is_liked: boolean
   is_favorite: boolean
   ai_summary?: string | null // AI 摘要全文（生成中/降级时为 null）
+  ai_answer?: string | null // AI 参考回答（V1.3，未生成时 null）
   answers: AnswerItem[]
   comments: CommentItem[]
 }
@@ -43,6 +44,8 @@ export interface AnswerItem {
   is_accepted: boolean
   is_best: boolean
   like_count: number
+  ai_rel_score?: number | null // AI 可靠性评分 0-100（V1.3，异步生成中为 null）
+  ai_rel_level?: string | null // 高 / 中 / 存疑
   is_liked: boolean
   created_at: string
 }

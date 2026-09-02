@@ -158,6 +158,7 @@ def detail_dict(
     data["images"] = post.images or []
     data["edited"] = post.updated_at is not None and post.updated_at > post.created_at
     data["ai_summary"] = post.ai_summary
+    data["ai_answer"] = post.ai_answer  # V1.3：AI 参考回答（未生成时 None）
     if viewer is not None:
         data["is_liked"] = (
             db.execute(
@@ -245,6 +246,8 @@ def update_post(
     post.title = title
     post.content = content
     post.images = images or None
+    post.ai_answer = None  # V1.3：内容已变 → AI 参考回答缓存作废（下次触发重新生成）
+    post.ai_answer_at = None
     _sync_tags(db, post.id, tags)
     db.commit()
     return detail_dict(db, post, user, author=user)
@@ -296,3 +299,38 @@ def generate_ai_summary_task(post_id: int) -> None:
         if post is not None and post.deleted_at is None:
             post.ai_summary = (out.get("summary") or "")[:200]
             db.commit()
+
+
+# ---- AI 参考回答（V1.3 ref_answer 场景）----
+
+
+def generate_ai_answer(db: Session, user: User, post_id: int) -> dict:
+    """用户触发生成 AI 参考回答（同步接口，缓存于 post.ai_answer 一次性付费）。
+
+    产品定位（PRD AI 场景）：兜底参考，非社区回答——不入 answer 表、不计积分、不可被采纳；
+    帖子编辑后缓存作废。LLM 不可用返回 40001 提示稍后再试。
+    """
+    from app.gateway.client import LLMDegradedError, gateway
+
+    post = get_post_or_404(db, post_id)
+    if post.ai_answer:  # 命中缓存直接返回
+        return {"ai_answer": post.ai_answer, "cached": True}
+    try:
+        out = gateway.invoke(
+            "ref_answer",
+            {
+                "post_id": post.id,
+                "title": post.title,
+                "content": (post.content or "")[:2000],
+                "tag_names": [t.name for t in _tags_of(db, post.id)],
+            },
+        )
+    except LLMDegradedError:
+        raise BizError(ErrCode.BAD_REQUEST, "AI 服务暂不可用，请稍后再试")
+    post = db.get(Post, post_id)
+    if post is None or post.deleted_at is not None:
+        raise BizError(ErrCode.NOT_FOUND, "帖子不存在或已删除")
+    post.ai_answer = out["answer_text"]
+    post.ai_answer_at = datetime.now()
+    db.commit()
+    return {"ai_answer": out["answer_text"], "cached": False}

@@ -46,6 +46,7 @@ class ErrCode:
     FAVORITE_NOT_ALLOWED = 40910  # 评论不可收藏
     REPORT_HANDLED = 40911  # 举报已被处理
     RECALL_EXCEED_BALANCE = 40912  # 追回积分超余额（追回至 0，流水记实际值）
+    LOW_QUALITY_ANSWER = 40913  # AI 判定回答质量过低（V1.3）
 
     # ---- 500xx 服务器 ----
     INTERNAL = 50001

@@ -47,6 +47,8 @@ class Report(Base):
     reason: Mapped[int] = mapped_column(SmallInteger, nullable=False)  # 1垃圾广告 2人身攻击 3色情低俗 4违法违规 5其他
     detail: Mapped[str] = mapped_column(String(200), default="")
     status: Mapped[int] = mapped_column(SmallInteger, default=0)  # 0待处理 1已处置 2驳回
+    ai_level: Mapped[str | None] = mapped_column(String(10), default=None)  # AI 违规分级 极高/高/低（V1.3，异步辅助管理员分诊）
+    ai_violation_type: Mapped[str | None] = mapped_column(String(50), default=None)
     handled_by: Mapped[int | None] = mapped_column(BigInt, default=None)
     result: Mapped[str] = mapped_column(String(200), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

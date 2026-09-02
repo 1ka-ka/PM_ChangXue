@@ -1,6 +1,9 @@
-"""moderation 路由：接口 30 提交举报（技术细节文档 §5.10）。"""
+"""moderation 路由：接口 30 提交举报（技术细节文档 §5.10）。
 
-from fastapi import APIRouter, Depends
+V1.3：提交后异步生成 AI 违规分级（moderation 场景）辅助管理员分诊。
+"""
+
+from fastapi import APIRouter, BackgroundTasks, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -23,8 +26,11 @@ class ReportIn(BaseModel):
 @router.post("/reports")
 def create_report(
     body: ReportIn,
+    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    service.create_report(db, user, body.target_type, body.target_id, body.reason, body.detail)
+    report_id = service.create_report(db, user, body.target_type, body.target_id, body.reason, body.detail)
+    # V1.3：异步 AI 违规分级（LLM 关闭/失败时任务内部静默）
+    background_tasks.add_task(service.moderate_report_task, report_id)
     return ok(None)

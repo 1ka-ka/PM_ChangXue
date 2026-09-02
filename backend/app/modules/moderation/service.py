@@ -44,13 +44,44 @@ def create_report(
     ).scalar()
     if dup:
         raise BizError(ErrCode.DUPLICATE_ACTION, "已举报过该内容，请等待处理")
-    db.add(
-        Report(
-            reporter_id=user.id,
-            target_type=target_type,
-            target_id=target_id,
-            reason=reason,
-            detail=detail,
-        )
+    report = Report(
+        reporter_id=user.id,
+        target_type=target_type,
+        target_id=target_id,
+        reason=reason,
+        detail=detail,
     )
+    db.add(report)
     db.commit()
+    return report.id
+
+
+# ---- AI 违规分级（V1.3 moderation 场景）----
+
+
+def moderate_report_task(report_id: int) -> None:
+    """BackgroundTasks 入口：异步为被举报内容生成 AI 违规分级，辅助管理员分诊；失败静默。"""
+    from app.core.database import SessionLocal
+    from app.gateway.client import LLMDegradedError, gateway
+
+    with SessionLocal() as db:
+        r = db.get(Report, report_id)
+        if r is None:
+            return
+        try:
+            target, _ = load_target(db, r.target_type, r.target_id)
+        except BizError:
+            return  # 内容已删，无需分级
+        if r.target_type == 1:
+            content = f"{target.title} {target.content or ''}"
+        else:
+            content = target.content or ""
+        try:
+            out = gateway.invoke("moderation", {"content": content[:2000]})
+        except LLMDegradedError:
+            return
+        r = db.get(Report, report_id)
+        if r is not None:
+            r.ai_level = out["level"]
+            r.ai_violation_type = out.get("violation_type")
+            db.commit()

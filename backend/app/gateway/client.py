@@ -76,6 +76,9 @@ def _extract_json(text: str) -> dict:
 class GatewayClient:
     """五场景统一客户端。模块级单例见文件尾 `gateway`。"""
 
+    # 场景级超时（秒）：生成长文本的场景放宽（V1.3 实测 qwen-plus 生成参考回答可超 10s）
+    _SCENE_TIMEOUTS = {"ref_answer": 60}
+
     def invoke(self, scene: str, payload: dict) -> dict:
         """调用 LLM 场景，返回契约输出字段 dict；任何失败抛 LLMDegradedError。"""
         if not settings.LLM_ENABLED or not settings.LLM_API_KEY:
@@ -109,11 +112,12 @@ class GatewayClient:
         """chat/completions 调用：超时+重试；网络/非 200/空回复均抛降级。"""
         url = f"{settings.LLM_BASE_URL.rstrip('/')}/chat/completions"
         headers = {"Authorization": f"Bearer {settings.LLM_API_KEY}"}
+        timeout = self._SCENE_TIMEOUTS.get(scene, settings.LLM_TIMEOUT_SECONDS)
         last_err: Exception | None = None
         for attempt in range(settings.LLM_MAX_RETRIES + 1):
             try:
                 resp = httpx.post(
-                    url, json=body, headers=headers, timeout=settings.LLM_TIMEOUT_SECONDS
+                    url, json=body, headers=headers, timeout=timeout
                 )
                 if resp.status_code == 200:
                     data = resp.json()
