@@ -191,3 +191,44 @@ def test_my_posts_filter(client):
     client.delete(f"/api/posts/{pid}", headers=h)
     r = client.get("/api/account/my-posts", headers=h)
     assert r.json()["data"]["total"] == 1
+
+
+def test_upload_image_and_use_in_post(client):
+    """配图上传：成功返回 /uploads/ URL；伪造扩展名 40005；URL 可随发帖提交。"""
+    import io
+
+    from PIL import Image
+
+    h, _ = _user_and_header(client)
+    tags = _tag_ids(client)
+
+    buf = io.BytesIO()
+    Image.new("RGB", (2000, 1000), "blue").save(buf, "PNG")
+    png = buf.getvalue()
+    r = client.post(
+        "/api/uploads/image", files={"file": ("a.png", png, "image/png")}, headers=h
+    )
+    assert r.json()["code"] == 0
+    url = r.json()["data"]["url"]
+    assert url.startswith("/uploads/post_")
+
+    # 伪造扩展名：内容不是图片 → 40005
+    r = client.post(
+        "/api/uploads/image",
+        files={"file": ("a.png", b"not-an-image", "image/png")},
+        headers=h,
+    )
+    assert r.json()["code"] == 40005
+
+    # 上传的 URL 随发帖提交（纯图帖：正文为空）
+    r = client.post(
+        "/api/posts",
+        json={"title": "纯图帖", "content": "", "images": [url], "tag_ids": tags},
+        headers=h,
+    )
+    assert r.json()["code"] == 0
+    assert r.json()["data"]["images"] == [url]
+
+    # 未登录不可上传
+    r = client.post("/api/uploads/image", files={"file": ("a.png", png, "image/png")})
+    assert r.status_code == 401

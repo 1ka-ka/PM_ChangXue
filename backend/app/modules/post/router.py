@@ -1,6 +1,8 @@
-"""post 路由：接口 9-12 + 我的帖子（技术细节文档 §5.3）。"""
+"""post 路由：接口 9-12 + 我的帖子 + 配图上传（技术细节文档 §5.3）。"""
 
-from fastapi import APIRouter, Depends, Query
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, File, Query, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -23,6 +25,20 @@ def list_tags(db: Session = Depends(get_db)):
 
     rows = db.execute(select(Tag).where(Tag.enabled == 1).order_by(Tag.sort, Tag.id)).scalars().all()
     return ok({"items": [{"id": t.id, "name": t.name, "sort": t.sort} for t in rows]})
+
+
+@router.post("/uploads/image")
+async def upload_image(
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+):
+    """发帖配图上传：magic bytes + 压缩至 1280px，返回 URL（提交帖时填入 images[]）。"""
+    from app.modules.account import service as account_service
+
+    data = await file.read()
+    ext = Path(file.filename or "").suffix
+    url = account_service.save_image(data, ext, max_px=1280, prefix="post")
+    return ok({"url": url})
 
 
 @router.post("/posts")

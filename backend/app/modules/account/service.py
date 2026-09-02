@@ -124,8 +124,8 @@ def update_profile(db: Session, user: User, **fields) -> dict:
     return brief(user)
 
 
-def save_avatar(data: bytes, ext: str) -> str:
-    """头像落盘：magic bytes 校验 + Pillow 压缩至 256px，返回 URL 路径。"""
+def save_image(data: bytes, ext: str, *, max_px: int = 1280, prefix: str = "img") -> str:
+    """通用图片落盘：magic bytes 校验 + Pillow 压缩，返回 URL 路径（发帖配图/头像共用）。"""
     kind = None
     for magic, name in _MAGIC.items():
         if data.startswith(magic):
@@ -142,9 +142,14 @@ def save_avatar(data: bytes, ext: str) -> str:
     from PIL import Image
 
     img = Image.open(io.BytesIO(data))
-    img.thumbnail((256, 256))
+    img.thumbnail((max_px, max_px))
     upload_dir = Path(settings.UPLOAD_DIR)
     upload_dir.mkdir(parents=True, exist_ok=True)
-    filename = f"avatar_{uuid.uuid4().hex}.png"
+    filename = f"{prefix}_{uuid.uuid4().hex}.png"
     img.save(upload_dir / filename, "PNG")
     return f"/uploads/{filename}"
+
+
+def save_avatar(data: bytes, ext: str) -> str:
+    """头像落盘：压缩至 256px。"""
+    return save_image(data, ext, max_px=256, prefix="avatar")
