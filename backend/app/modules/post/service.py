@@ -133,7 +133,7 @@ def _card(db: Session, post: Post, author: User | None = None) -> dict:
     return PostCard(
         id=post.id,
         title=post.title,
-        summary=(post.content or "")[:100],
+        summary=(post.ai_summary or (post.content or "")[:100])[:100],
         author_id=post.author_id,
         author_nickname=author.nickname if author else "已注销",
         status=post.status,
@@ -144,6 +144,7 @@ def _card(db: Session, post: Post, author: User | None = None) -> dict:
         tags=_tags_of(db, post.id),
         is_rewarded=post.reward > 0,
         no_answer_days=_no_answer_days(post),
+        is_ai_summary=bool(post.ai_summary),
         created_at=post.created_at,
     ).model_dump()
 
@@ -156,6 +157,7 @@ def detail_dict(
     data["content"] = post.content or ""
     data["images"] = post.images or []
     data["edited"] = post.updated_at is not None and post.updated_at > post.created_at
+    data["ai_summary"] = post.ai_summary
     if viewer is not None:
         data["is_liked"] = (
             db.execute(
@@ -268,3 +270,29 @@ def my_posts(db: Session, user_id: int, status: int | None, offset: int, limit: 
         db.execute(q.order_by(Post.id.desc()).offset(offset).limit(limit)).scalars().all()
     )
     return {"total": total, "items": [_card(db, p) for p in rows]}
+
+
+# ---- AI 摘要（V1.2 summary 场景）----
+
+
+def generate_ai_summary_task(post_id: int) -> None:
+    """BackgroundTasks 入口：独立会话调用 LLM 生成摘要，任何失败静默降级（保持 None，列表回退正文截断）。
+
+    独立 SessionLocal 而非复用请求会话：后台任务在响应返回后执行，请求级会话已关闭。
+    """
+    from app.core.database import SessionLocal
+    from app.gateway.client import LLMDegradedError, gateway
+
+    with SessionLocal() as db:
+        post = db.get(Post, post_id)
+        if post is None or post.deleted_at is not None:
+            return
+        title, content = post.title, post.content or ""
+        try:
+            out = gateway.invoke("summary", {"title": title, "content": content})
+        except LLMDegradedError:
+            return  # 降级：ai_summary 保持 None
+        post = db.get(Post, post_id)  # 重取防并发过期
+        if post is not None and post.deleted_at is None:
+            post.ai_summary = (out.get("summary") or "")[:200]
+            db.commit()

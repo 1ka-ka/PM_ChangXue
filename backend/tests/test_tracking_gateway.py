@@ -168,21 +168,9 @@ def test_scene_map_and_contracts_registry():
     assert SCENE_CONTRACTS["moderation"] == (ModerationInput, ModerationOutput)
 
 
-def test_p0_zero_llm_call_path():
-    """P0 零模型调用：LLM_ENABLED=False；gateway 目录无 client/HTTP 调用代码。"""
+def test_llm_disabled_in_test_env():
+    """测试环境恒关 LLM（V1.2 起语义变更：client.py 已合法存在，唯一要求是测试不发真实调用）。"""
     assert settings.LLM_ENABLED is False
-    import inspect
-    from pathlib import Path
-
-    import app.gateway as gw
-
-    gw_dir = Path(inspect.getfile(gw)).parent
-    py_files = list(gw_dir.rglob("*.py"))
-    assert py_files, "gateway 目录存在"
-    # client.py（P1 外部调用实现）不存在
-    assert not (gw_dir / "client.py").exists()
-    # 现有契约文件不包含 http 请求调用代码
-    for f in py_files:
-        src = f.read_text(encoding="utf-8")
-        for kw in ("httpx", "requests.post", "urllib.request", "aiohttp"):
-            assert kw not in src, f"{f.name} 不应包含外部调用代码：{kw}"
+    assert settings.LLM_API_KEY == ""  # 测试环境不携带 Key
+    # client.py 的 HTTP 出口仅存在于 gateway._chat；测试环境 LLM_ENABLED=False，
+    # invoke 在进入 _chat 前即降级返回（test_llm_gateway.test_invoke_degraded_when_disabled 覆盖）

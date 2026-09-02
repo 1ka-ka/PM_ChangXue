@@ -42,9 +42,12 @@ class Settings(BaseSettings):
     TAG_MAX_PER_POST: int = 3
     RANK_TOP_N: int = 10
 
-    # ---- LLM 网关（P0 不启用）----
+    # ---- LLM 网关（V1.2 起接入；.env 提供 Key，测试环境恒关）----
     LLM_ENABLED: bool = False
+    LLM_API_KEY: str = ""
+    LLM_BASE_URL: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     LLM_TIMEOUT_SECONDS: int = 10
+    LLM_MAX_RETRIES: int = 2  # 首次 + 重试次数
 
 
 settings = Settings()

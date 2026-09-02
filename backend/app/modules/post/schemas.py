@@ -41,6 +41,7 @@ class PostCard(BaseModel):
     tags: list[TagItem]
     is_rewarded: bool = False  # 悬赏标记
     no_answer_days: int | None = None  # 待解决帖超阈值无新回答时非 null（PRD §6.1）
+    is_ai_summary: bool = False  # summary 为 AI 生成摘要（V1.2），否则为正文截断
     created_at: datetime
 
 
@@ -50,3 +51,4 @@ class PostDetail(PostCard):
     is_liked: bool = False
     is_favorite: bool = False
     edited: bool = False
+    ai_summary: str | None = None  # AI 摘要全文（生成中/降级时为 null）

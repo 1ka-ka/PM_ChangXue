@@ -19,6 +19,7 @@ export interface PostCard {
   tags: TagItem[]
   is_rewarded: boolean
   no_answer_days: number | null
+  is_ai_summary?: boolean // summary 为 AI 生成摘要（V1.2），否则为正文截断
   created_at: string
 }
 
@@ -28,6 +29,7 @@ export interface PostDetail extends PostCard {
   edited: boolean
   is_liked: boolean
   is_favorite: boolean
+  ai_summary?: string | null // AI 摘要全文（生成中/降级时为 null）
   answers: AnswerItem[]
   comments: CommentItem[]
 }

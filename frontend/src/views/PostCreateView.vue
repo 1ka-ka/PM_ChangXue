@@ -276,10 +276,10 @@ watch([() => form.title, () => form.tag_ids], () => {
         </div>
       </el-form-item>
 
-      <!-- AI 摘要占位（P1 上线 M8-F32） -->
+      <!-- AI 摘要（V1.2 已上线）：发布后自动异步生成 -->
       <div class="ai-placeholder">
         <el-icon><MagicStick /></el-icon>
-        <span>AI 摘要功能即将上线，届时将自动为你的提问生成摘要</span>
+        <span>发布后将自动生成 AI 摘要，展示在帖子详情页与列表卡片</span>
       </div>
 
       <div class="actions">

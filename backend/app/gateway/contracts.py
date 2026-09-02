@@ -9,13 +9,13 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-# 场景 → P1 默认模型（ARCH §6；配置驱动，P0 不调用）
+# 场景 → 默认模型（ARCH §6；配置驱动。V1.2 起接入阿里云百炼 DashScope）
 SCENE_MODEL_MAP = {
-    "summary": "GLM-4.5-Flash",
-    "ref_answer": "GLM-4.5-Flash",
-    "reliability": "DeepSeek-V3",
-    "quality": "DeepSeek-V3",
-    "moderation": "safety-model",
+    "summary": "qwen-turbo",      # 轻量摘要：快+省
+    "ref_answer": "qwen-plus",    # 参考回答：需推理能力
+    "reliability": "qwen-plus",   # 可靠性评分：需推理能力
+    "quality": "qwen-plus",       # 质量检测：需判别能力
+    "moderation": "qwen-plus",    # 违规分级：需判别能力
 }
 
 

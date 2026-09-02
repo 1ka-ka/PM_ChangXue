@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Query, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -45,10 +45,14 @@ async def upload_image(
 @router.post("/posts")
 def create_post(
     body: PostCreateIn,
+    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return ok(service.create_post(db, user, body.title, body.content, body.images, body.tag_ids, body.reward))
+    data = service.create_post(db, user, body.title, body.content, body.images, body.tag_ids, body.reward)
+    # AI 摘要异步生成（V1.2）：LLM 关闭/失败时任务内部静默降级
+    background_tasks.add_task(service.generate_ai_summary_task, data["id"])
+    return ok(data)
 
 
 @router.get("/posts/similar")
@@ -96,12 +100,14 @@ def similar_of_post(
 def update_post(
     post_id: int,
     body: PostUpdateIn,
+    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return ok(
-        service.update_post(db, user, post_id, body.title, body.content, body.images, body.tag_ids)
-    )
+    data = service.update_post(db, user, post_id, body.title, body.content, body.images, body.tag_ids)
+    # 编辑窗口内改了内容 → 重新生成 AI 摘要
+    background_tasks.add_task(service.generate_ai_summary_task, post_id)
+    return ok(data)
 
 
 @router.delete("/posts/{post_id}")

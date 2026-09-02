@@ -18,7 +18,9 @@ const router = useRouter()
         悬赏 {{ post.reward }}
       </el-tag>
     </div>
-    <p class="summary">{{ post.summary }}</p>
+    <p class="summary">
+      <span v-if="post.is_ai_summary" class="ai-badge">AI</span>{{ post.summary }}
+    </p>
     <div class="meta">
       <span class="tags">
         <el-tag v-for="t in post.tags" :key="t.id" size="small" effect="plain">{{ t.name }}</el-tag>
@@ -70,6 +72,19 @@ const router = useRouter()
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.ai-badge {
+  display: inline-block;
+  margin-right: 5px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 17px;
+  vertical-align: 1px;
 }
 
 .meta {

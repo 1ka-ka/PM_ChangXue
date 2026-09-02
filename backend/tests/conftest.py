@@ -7,6 +7,8 @@ os.environ["APP_ENV"] = "test"
 os.environ["DATABASE_URL"] = "sqlite://"  # 内存库
 os.environ["SECRET_KEY"] = "test-secret-key"
 os.environ["UPLOAD_DIR"] = "./uploads_test"  # 测试上传目录（.gitignore 覆盖 uploads* 不污染仓库）
+os.environ["LLM_ENABLED"] = "false"  # 测试环境禁用真实 LLM 调用（V1.2）
+os.environ["LLM_API_KEY"] = ""  # 并显式清空 Key（防 .env 泄入测试进程）
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402

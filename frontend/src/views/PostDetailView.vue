@@ -131,6 +131,16 @@ function fmtTime(s: string) {
           <span v-if="post.edited" class="edited">已编辑</span>
         </div>
 
+        <!-- AI 摘要（V1.2）：后台异步生成，生成中/降级时整块不渲染 -->
+        <div v-if="post.ai_summary" class="ai-summary">
+          <div class="ai-head">
+            <el-icon><MagicStick /></el-icon>
+            <span>AI 摘要</span>
+            <span class="ai-tip">由 AI 自动生成，仅供参考</span>
+          </div>
+          <p class="ai-text">{{ post.ai_summary }}</p>
+        </div>
+
         <p class="content">{{ post.content }}</p>
 
         <div v-if="post.images.length" class="images">
@@ -315,6 +325,36 @@ function fmtTime(s: string) {
   line-height: 1.7;
   white-space: pre-wrap;
   margin: 12px 0;
+}
+
+.ai-summary {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-left: 3px solid #a29bfe;
+  border-radius: 6px;
+  background: linear-gradient(135deg, rgba(108, 92, 231, 0.06), rgba(162, 155, 254, 0.1));
+}
+
+.ai-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6c5ce7;
+}
+
+.ai-tip {
+  font-weight: 400;
+  font-size: 11px;
+  color: #b3aef0;
+}
+
+.ai-text {
+  margin: 8px 0 0;
+  color: #555;
+  line-height: 1.7;
+  font-size: 14px;
 }
 
 .images {
