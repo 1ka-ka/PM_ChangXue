@@ -1,10 +1,10 @@
 <script setup lang="ts">
-/** 帖子详情：正文渲染 + 回答列表（提交/点赞）+ 帖子评论 + 收藏/举报入口。采纳仅登录提问者可见。 */
+/** 帖子详情：正文渲染 + 回答列表（提交/点赞）+ 帖子评论 + 收藏/举报入口 + 相关问题推荐（V1.1）。 */
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ApiError, get, post as httpPost } from '@/api/http'
-import type { PostDetail } from '@/api/types'
+import type { PostCard, PostDetail } from '@/api/types'
 import { useAuthStore } from '@/stores/auth'
 import CommentThread from '@/components/CommentThread.vue'
 import ReportDialog from '@/components/ReportDialog.vue'
@@ -18,11 +18,19 @@ const loading = ref(true)
 const answerText = ref('')
 const submitting = ref(false)
 const reportRef = ref<InstanceType<typeof ReportDialog>>()
+const similar = ref<PostCard[]>([])
 
 async function load() {
   loading.value = true
   try {
     post.value = await get<PostDetail>(`/posts/${route.params.id}`)
+    // 相关问题推荐（V1.1）：失败静默不影响主内容
+    try {
+      const r = await get<{ items: PostCard[] }>(`/posts/${route.params.id}/similar`)
+      similar.value = r.items
+    } catch {
+      similar.value = []
+    }
   } finally {
     loading.value = false
   }
@@ -244,6 +252,23 @@ function fmtTime(s: string) {
         <h3 class="section-title">帖子评论</h3>
         <CommentThread :target-type="1" :target-id="post.id" />
       </div>
+
+      <!-- 相关问题（V1.1 相似推荐） -->
+      <div v-if="similar.length" class="cx-card">
+        <h3 class="section-title">相关问题</h3>
+        <div
+          v-for="s in similar"
+          :key="s.id"
+          class="similar-row"
+          @click="router.push(`/posts/${s.id}`)"
+        >
+          <el-tag size="small" :type="s.status === 1 ? 'success' : 'warning'" effect="plain">
+            {{ s.status === 1 ? '已解决' : '待解决' }}
+          </el-tag>
+          <span class="s-title">{{ s.title }}</span>
+          <span class="s-meta">{{ s.answer_count }} 回答 · {{ s.view_count }} 浏览</span>
+        </div>
+      </div>
     </template>
 
     <div v-else-if="!loading" class="cx-empty">
@@ -365,5 +390,36 @@ function fmtTime(s: string) {
   display: flex;
   justify-content: flex-end;
   margin-top: 8px;
+}
+
+.similar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 4px;
+  border-bottom: 1px solid #f5f5f5;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.similar-row:last-child {
+  border-bottom: none;
+}
+
+.similar-row:hover .s-title {
+  color: var(--el-color-primary);
+}
+
+.s-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.s-meta {
+  color: #999;
+  font-size: 12px;
+  flex-shrink: 0;
 }
 </style>

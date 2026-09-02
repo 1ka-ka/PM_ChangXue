@@ -9,8 +9,10 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { UploadFile, UploadRequestOptions } from 'element-plus'
 import { ApiError, get, http, post } from '@/api/http'
-import type { TagItem } from '@/api/types'
+import type { PostCard, TagItem } from '@/api/types'
 import { useAuthStore } from '@/stores/auth'
+
+type SimilarItem = PostCard & { similar_score: number }
 
 const DRAFT_KEY = 'cx_post_draft'
 const REWARD_TIERS = [0, 10, 20, 50, 100]
@@ -165,6 +167,29 @@ async function doSubmit(reward: number) {
 function tierDisabled(tier: number) {
   return tier > 0 && tier > (auth.user?.credit_balance ?? 0)
 }
+
+// ---- 相似问答推荐（V1.1 防重复提问）：标题防抖 600ms 实时提示 ----
+const similarItems = ref<SimilarItem[]>([])
+let similarTimer: ReturnType<typeof setTimeout> | null = null
+
+watch([() => form.title, () => form.tag_ids], () => {
+  if (similarTimer) clearTimeout(similarTimer)
+  const q = form.title.trim()
+  if (q.length < 2) {
+    similarItems.value = []
+    return
+  }
+  similarTimer = setTimeout(async () => {
+    try {
+      const params: Record<string, string> = { q }
+      if (form.tag_ids.length) params.tag_ids = form.tag_ids.join(',')
+      const r = await get<{ items: SimilarItem[] }>('/posts/similar', params)
+      similarItems.value = r.items
+    } catch {
+      // 推荐失败静默（不阻塞发帖主流程）
+    }
+  }, 600)
+})
 </script>
 
 <template>
@@ -188,6 +213,25 @@ function tierDisabled(tier: number) {
           show-word-limit
           size="large"
         />
+        <!-- 相似问答提示：发布前先看看有没有人问过（V1.1 防重复提问） -->
+        <div v-if="similarItems.length" class="similar-box">
+          <div class="similar-head">
+            <el-icon><Search /></el-icon>
+            <span>已有相似问题，发布前不妨先看看：</span>
+          </div>
+          <div
+            v-for="s in similarItems"
+            :key="s.id"
+            class="similar-item"
+            @click="router.push(`/posts/${s.id}`)"
+          >
+            <el-tag size="small" :type="s.status === 1 ? 'success' : 'warning'" effect="plain">
+              {{ s.status === 1 ? '已解决' : '待解决' }}
+            </el-tag>
+            <span class="s-title">{{ s.title }}</span>
+            <span class="s-meta">{{ s.answer_count }} 回答</span>
+          </div>
+        </div>
       </el-form-item>
 
       <el-form-item label="正文">
@@ -305,5 +349,50 @@ function tierDisabled(tier: number) {
 .draft-tip {
   color: #bbb;
   font-size: 12px;
+}
+
+.similar-box {
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--el-color-primary-light-8);
+  border-radius: 8px;
+  background: var(--el-color-primary-light-9);
+}
+
+.similar-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #666;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.similar-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.similar-item:hover {
+  background: var(--el-fill-color);
+}
+
+.s-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.s-meta {
+  color: #999;
+  font-size: 12px;
+  flex-shrink: 0;
 }
 </style>

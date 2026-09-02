@@ -7,8 +7,9 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import PageParams, get_current_user
+from app.core.exceptions import BizError, ErrCode
 from app.core.response import ok
-from app.models import User
+from app.models import Post, User
 from app.modules.account.router import optional_user
 from app.modules.post import service
 from app.modules.post.schemas import PostCreateIn, PostUpdateIn
@@ -50,6 +51,18 @@ def create_post(
     return ok(service.create_post(db, user, body.title, body.content, body.images, body.tag_ids, body.reward))
 
 
+@router.get("/posts/similar")
+def similar_by_query(
+    q: str = Query(..., min_length=2, max_length=100, description="待发标题关键词"),
+    tag_ids: str | None = Query(None, description="逗号分隔标签 id，如 1,3"),
+    limit: int = Query(5, ge=1, le=10),
+    db: Session = Depends(get_db),
+):
+    """发帖页防重复：按标题（+标签）推荐相似历史帖，未登录可用。"""
+    ids = [int(x) for x in tag_ids.split(",") if x.strip().isdigit()] if tag_ids else []
+    return ok({"items": service.similar_posts(db, q, ids, limit=limit)})
+
+
 @router.get("/posts/{post_id}")
 def get_post(
     post_id: int,
@@ -63,6 +76,20 @@ def get_post(
     data["answers"] = answers.list_answers(db, post_id, viewer)
     data["comments"] = comments.list_comments(db, 1, post_id)
     return ok(data)
+
+
+@router.get("/posts/{post_id}/similar")
+def similar_of_post(
+    post_id: int,
+    limit: int = Query(5, ge=1, le=10),
+    db: Session = Depends(get_db),
+):
+    """详情页"相关问题"：按本帖标题+标签推荐相似帖（排除自身）。"""
+    post = db.get(Post, post_id)
+    if post is None or post.deleted_at is not None:
+        raise BizError(ErrCode.NOT_FOUND, "帖子不存在或已删除")
+    tag_ids = [t.id for t in service._tags_of(db, post_id)]
+    return ok({"items": service.similar_posts(db, post.title, tag_ids, exclude_id=post_id, limit=limit)})
 
 
 @router.put("/posts/{post_id}")
