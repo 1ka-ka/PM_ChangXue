@@ -1,14 +1,16 @@
-"""互动路由：回答 14-16、评论 19-20、点赞/收藏 21-22（技术细节文档 §5.4/§5.5）。"""
+"""互动路由：回答 14-16、评论 19-20、点赞/收藏 21-22 + 收藏列表（技术细节文档 §5.4/§5.5）。"""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import get_current_user
+from app.core.deps import PageParams, get_current_user
 from app.core.response import ok
-from app.models import User
+from app.models import Post, User
 from app.modules.post import answers, comments, likes
+from app.modules.post.service import _card
 
 router = APIRouter()
 
@@ -109,3 +111,50 @@ def toggle_favorite(
     db: Session = Depends(get_db),
 ):
     return ok(likes.toggle_favorite(db, user, body.target_type, body.target_id))
+
+
+@router.get("/favorites")
+def list_favorites(
+    target_type: int = Query(1, ge=1, le=2, description="1 帖子 2 回答"),
+    page: PageParams = Depends(),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """我的收藏列表（个人主页收藏 Tab）：软删目标自动过滤；帖子返回 PostCard。"""
+    from app.models import Answer, Favorite
+
+    favs = (
+        db.execute(
+            select(Favorite)
+            .where(Favorite.user_id == user.id, Favorite.target_type == target_type)
+            .order_by(Favorite.created_at.desc())
+        )
+        .scalars()
+        .all()
+    )
+    items = []
+    for f in favs:
+        if target_type == 1:
+            p = db.get(Post, f.target_id)
+            if p is not None and p.deleted_at is None:
+                items.append(_card(db, p))
+        else:
+            a = db.get(Answer, f.target_id)
+            if a is not None and a.deleted_at is None:
+                post = db.get(Post, a.post_id)
+                if post is not None and post.deleted_at is None:
+                    items.append(
+                        {
+                            "answer_id": a.id,
+                            "post_id": post.id,
+                            "post_title": post.title,
+                            "content": (a.content or "")[:200],
+                            "author_nickname": (
+                                db.get(User, a.author_id).nickname
+                                if db.get(User, a.author_id)
+                                else "已注销"
+                            ),
+                            "created_at": a.created_at,
+                        }
+                    )
+    return ok({"total": len(items), "items": items[page.offset : page.offset + page.limit]})

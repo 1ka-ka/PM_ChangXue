@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** 帖子详情：正文渲染 + 回答列表（提交/点赞）+ 帖子评论。采纳按钮 S11b 仅登录提问者可见（调 S6 接口）。 */
+/** 帖子详情：正文渲染 + 回答列表（提交/点赞）+ 帖子评论 + 收藏/举报入口。采纳仅登录提问者可见。 */
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -7,6 +7,7 @@ import { ApiError, get, post as httpPost } from '@/api/http'
 import type { PostDetail } from '@/api/types'
 import { useAuthStore } from '@/stores/auth'
 import CommentThread from '@/components/CommentThread.vue'
+import ReportDialog from '@/components/ReportDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -16,6 +17,7 @@ const post = ref<PostDetail | null>(null)
 const loading = ref(true)
 const answerText = ref('')
 const submitting = ref(false)
+const reportRef = ref<InstanceType<typeof ReportDialog>>()
 
 async function load() {
   loading.value = true
@@ -62,6 +64,20 @@ async function toggleLike(targetType: 1 | 2, targetId: number, current: { is_lik
   })
   current.is_liked = r.liked
   current.like_count = r.like_count
+}
+
+async function toggleFavorite() {
+  if (!post.value) return
+  if (!auth.isLogged) {
+    router.push({ path: '/login', query: { redirect: route.fullPath } })
+    return
+  }
+  const r = await httpPost<{ favorited: boolean }>('/favorites/toggle', {
+    target_type: 1,
+    target_id: post.value.id,
+  })
+  post.value.is_favorite = r.favorited
+  ElMessage.success(r.favorited ? '已收藏' : '已取消收藏')
 }
 
 async function acceptAnswer(answerId: number) {
@@ -134,6 +150,17 @@ function fmtTime(s: string) {
             >
               <el-icon><Pointer /></el-icon>&nbsp;{{ post.like_count }}
             </el-button>
+            <el-button
+              size="small"
+              :type="post.is_favorite ? 'warning' : 'default'"
+              round
+              @click="toggleFavorite"
+            >
+              <el-icon><Star /></el-icon>&nbsp;{{ post.is_favorite ? '已收藏' : '收藏' }}
+            </el-button>
+            <el-button size="small" text @click="reportRef?.open(1, post.id)">
+              <el-icon><WarningFilled /></el-icon>&nbsp;举报
+            </el-button>
           </span>
         </div>
       </div>
@@ -179,6 +206,9 @@ function fmtTime(s: string) {
             >
               采纳
             </el-button>
+            <el-button size="small" text @click="reportRef?.open(2, a.id)">
+              <el-icon><WarningFilled /></el-icon>&nbsp;举报
+            </el-button>
           </div>
 
           <el-divider class="comment-divider" content-position="left">
@@ -220,6 +250,8 @@ function fmtTime(s: string) {
       <p>帖子不存在或已删除</p>
       <router-link to="/feed">返回广场</router-link>
     </div>
+
+    <ReportDialog ref="reportRef" />
   </div>
 </template>
 

@@ -223,6 +223,32 @@ def test_favorite_toggle_and_comment_blocked(client):
     assert r.json()["code"] == 40910
 
 
+def test_favorite_list_and_deleted_filter(client):
+    """收藏列表：帖/答两种 target_type 分列；软删目标自动过滤。"""
+    h, pid = _setup_post(client)
+    h2 = _user(client, "收藏家")
+    aid = _answer(client, h2, pid).json()["data"]["id"]
+    # h2 收藏帖与回答
+    client.post("/api/favorites/toggle", json={"target_type": 1, "target_id": pid}, headers=h2)
+    client.post("/api/favorites/toggle", json={"target_type": 2, "target_id": aid}, headers=h2)
+
+    r = client.get("/api/favorites", params={"target_type": 1}, headers=h2)
+    data = r.json()["data"]
+    assert data["total"] == 1 and data["items"][0]["id"] == pid
+
+    r = client.get("/api/favorites", params={"target_type": 2}, headers=h2)
+    data = r.json()["data"]
+    assert data["total"] == 1
+    assert data["items"][0]["answer_id"] == aid and data["items"][0]["post_id"] == pid
+
+    # 帖子软删后：帖收藏与回答收藏均过滤
+    client.delete(f"/api/posts/{pid}", headers=h)
+    r = client.get("/api/favorites", params={"target_type": 1}, headers=h2)
+    assert r.json()["data"]["total"] == 0
+    r = client.get("/api/favorites", params={"target_type": 2}, headers=h2)
+    assert r.json()["data"]["total"] == 0
+
+
 def test_answer_sorting(client):
     """排序：最佳 > 采纳 > 点赞数。"""
     h, pid = _setup_post(client)

@@ -12,7 +12,7 @@ invalid 联动规则：对象被软删时，凡 target 指向该对象的通知�
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
-from app.models import Notification, User
+from app.models import Answer, Comment, Notification, User
 from app.modules.account.service import brief
 
 TYPE_TEXT = {
@@ -52,6 +52,24 @@ def invalidate(db: Session, target_type: int, target_id: int) -> None:
     )
 
 
+def _post_id_of(db: Session, target_type: int, target_id: int) -> int | None:
+    """通知目标反查所属帖子 id（前端点击直达帖子详情）。"""
+    if target_type == 1:
+        return target_id
+    if target_type == 2:
+        a = db.get(Answer, target_id)
+        return a.post_id if a else None
+    if target_type == 3:
+        c = db.get(Comment, target_id)
+        if c is None:
+            return None
+        if c.target_type == 1:
+            return c.target_id
+        a = db.get(Answer, c.target_id)
+        return a.post_id if a else None
+    return None
+
+
 def _item(db: Session, n: Notification) -> dict:
     actor = db.get(User, n.actor_id)
     return {
@@ -61,6 +79,7 @@ def _item(db: Session, n: Notification) -> dict:
         "actor": brief(actor) if actor else None,
         "target_type": n.target_type,
         "target_id": n.target_id,
+        "post_id": _post_id_of(db, n.target_type, n.target_id),
         "is_read": bool(n.is_read),
         "invalid": bool(n.invalid),
         "created_at": n.created_at,
