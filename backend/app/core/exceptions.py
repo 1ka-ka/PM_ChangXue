@@ -22,6 +22,7 @@ class ErrCode:
     SENSITIVE_WORD = 40003  # 内容含违禁词
     PHONE_EXISTS = 40004  # 手机号已注册
     FILE_INVALID = 40005  # 文件类型/大小超限
+    RATE_LIMITED = 40006  # 请求过于频繁（埋点限流，HTTP 429）
 
     # ---- 401xx 认证 ----
     BAD_CREDENTIALS = 40101  # 账号或密码错误
