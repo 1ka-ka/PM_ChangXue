@@ -29,7 +29,13 @@ def get_post(
     viewer: User | None = Depends(optional_user),
     db: Session = Depends(get_db),
 ):
-    return ok(service.get_detail(db, post_id, viewer))
+    data = service.get_detail(db, post_id, viewer)
+    # 详情附回答列表与帖子根评论树（技术细节文档接口 10）
+    from app.modules.post import answers, comments
+
+    data["answers"] = answers.list_answers(db, post_id, viewer)
+    data["comments"] = comments.list_comments(db, 1, post_id)
+    return ok(data)
 
 
 @router.put("/posts/{post_id}")

@@ -1,0 +1,101 @@
+"""互动路由：回答 14-16、评论 19-20、点赞/收藏 21-22（技术细节文档 §5.4/§5.5）。"""
+
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
+
+from app.core.database import get_db
+from app.core.deps import get_current_user
+from app.core.response import ok
+from app.models import User
+from app.modules.post import answers, comments, likes
+
+router = APIRouter()
+
+
+class AnswerCreateIn(BaseModel):
+    content: str = Field(min_length=1, max_length=5000)
+
+
+@router.post("/posts/{post_id}/answers")
+def create_answer(
+    post_id: int,
+    body: AnswerCreateIn,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return ok(answers.create_answer(db, user, post_id, body.content))
+
+
+@router.put("/answers/{answer_id}")
+def update_answer(
+    answer_id: int,
+    body: AnswerCreateIn,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return ok(answers.update_answer(db, user, answer_id, body.content))
+
+
+@router.delete("/answers/{answer_id}")
+def delete_answer(
+    answer_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    answers.delete_answer(db, user, answer_id)
+    return ok(None)
+
+
+class CommentCreateIn(BaseModel):
+    target_type: int = Field(ge=1, le=3)
+    target_id: int
+    content: str = Field(min_length=1, max_length=500)
+    parent_id: int | None = None
+    reply_to_user_id: int | None = None
+
+
+@router.post("/comments")
+def create_comment(
+    body: CommentCreateIn,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return ok(
+        comments.create_comment(
+            db, user, body.target_type, body.target_id, body.content, body.parent_id, body.reply_to_user_id
+        )
+    )
+
+
+@router.delete("/comments/{comment_id}")
+def delete_comment(
+    comment_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    comments.delete_comment(db, user, comment_id)
+    return ok(None)
+
+
+class TargetIn(BaseModel):
+    target_type: int = Field(ge=1, le=3)
+    target_id: int
+
+
+@router.post("/likes/toggle")
+def toggle_like(
+    body: TargetIn,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return ok(likes.toggle_like(db, user, body.target_type, body.target_id))
+
+
+@router.post("/favorites/toggle")
+def toggle_favorite(
+    body: TargetIn,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return ok(likes.toggle_favorite(db, user, body.target_type, body.target_id))

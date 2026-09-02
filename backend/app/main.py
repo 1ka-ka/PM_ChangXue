@@ -12,6 +12,7 @@ from app.core.exceptions import BizError, ErrCode
 from app.modules.account.router import router as account_router
 from app.modules.credit.router import router as credit_router
 from app.modules.post.router import router as post_router
+from app.modules.post.interaction_router import router as interaction_router
 
 
 def create_app() -> FastAPI:
@@ -31,6 +32,7 @@ def create_app() -> FastAPI:
     app.include_router(account_router, prefix="/api")
     app.include_router(credit_router, prefix="/api")
     app.include_router(post_router, prefix="/api")
+    app.include_router(interaction_router, prefix="/api")
 
     # 上传文件静态服务（头像/帖子图片）
     from pathlib import Path
