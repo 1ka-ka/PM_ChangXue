@@ -46,8 +46,8 @@ class Post(Base):
     accepted_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
     ai_summary: Mapped[str | None] = mapped_column(String(200), default=None)  # P1 启用
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     __table_args__ = (
         Index("idx_post_author", "author_id"),
@@ -77,8 +77,8 @@ class Answer(Base):
     is_best: Mapped[int] = mapped_column(SmallInteger, default=0)
     like_count: Mapped[int] = mapped_column(Integer, default=0)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     __table_args__ = (
         Index("idx_answer_post", "post_id"),
