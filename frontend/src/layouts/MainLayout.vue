@@ -1,0 +1,188 @@
+<script setup lang="ts">
+/**
+ * 主布局：知乎式固定顶栏（logo / 搜索 / 通知铃铛 / 发帖 / 头像菜单）+ 内容区。
+ * 主题装扮（PRD P2 预留）：根元素挂 CSS 变量 --cx-theme-bg，未来由用户主页设置驱动。
+ */
+import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { useAuthStore } from '@/stores/auth'
+
+const auth = useAuthStore()
+const route = useRoute()
+const router = useRouter()
+const keyword = ref((route.query.q as string) || '')
+
+onMounted(() => {
+  if (auth.isLogged) {
+    auth.fetchUnread()
+  }
+})
+
+const badgeText = computed(() =>
+  auth.unreadCount > 99 ? '99+' : auth.unreadCount > 0 ? String(auth.unreadCount) : '',
+)
+
+function onSearch() {
+  const q = keyword.value.trim()
+  if (!q) return
+  router.push({ path: '/search', query: { q } })
+}
+
+function onCommand(cmd: string) {
+  if (cmd === 'profile') {
+    router.push(`/u/${auth.user?.id}`)
+  } else if (cmd === 'notifications') {
+    router.push('/notifications')
+  } else if (cmd === 'admin') {
+    router.push('/admin')
+  } else if (cmd === 'logout') {
+    auth.logout()
+    ElMessage.success('已退出登录')
+    router.push('/login')
+  }
+}
+</script>
+
+<template>
+  <el-container class="layout">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <router-link to="/feed" class="logo">畅学</router-link>
+
+        <nav class="nav">
+          <router-link to="/feed">广场</router-link>
+          <router-link to="/ranks">助人榜</router-link>
+        </nav>
+
+        <div class="search-box">
+          <el-input
+            v-model="keyword"
+            placeholder="搜索问题 / 知识库"
+            clearable
+            @keyup.enter="onSearch"
+          >
+            <template #append>
+              <el-button @click="onSearch">搜索</el-button>
+            </template>
+          </el-input>
+        </div>
+
+        <div class="actions">
+          <el-badge :value="badgeText" :hidden="!badgeText" :max="99">
+            <el-button circle title="通知" @click="router.push('/notifications')">
+              <el-icon><Bell /></el-icon>
+            </el-button>
+          </el-badge>
+
+          <el-button type="primary" round @click="router.push('/posts/create')">
+            提问
+          </el-button>
+
+          <template v-if="auth.isLogged">
+            <el-dropdown trigger="click" @command="onCommand">
+              <el-avatar :size="34" class="avatar">
+                {{ auth.user?.nickname?.slice(0, 1) || '?' }}
+              </el-avatar>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="profile">
+                    {{ auth.user?.nickname }}（{{ auth.user?.credit_balance }} 积分）
+                  </el-dropdown-item>
+                  <el-dropdown-item command="notifications" divided>
+                    通知中心
+                  </el-dropdown-item>
+                  <el-dropdown-item v-if="auth.user?.is_admin" command="admin">
+                    管理后台
+                  </el-dropdown-item>
+                  <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </template>
+          <el-button v-else text type="primary" @click="router.push('/login')">
+            登录
+          </el-button>
+        </div>
+      </div>
+    </header>
+
+    <main class="content">
+      <router-view :key="route.fullPath" />
+    </main>
+  </el-container>
+</template>
+
+<style scoped>
+.layout {
+  min-height: 100vh;
+  background: var(--cx-theme-bg, #f6f6f6);
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.topbar-inner {
+  max-width: 1000px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  height: 56px;
+  padding: 0 16px;
+}
+
+.logo {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--el-color-primary);
+  text-decoration: none;
+  letter-spacing: 2px;
+}
+
+.nav {
+  display: flex;
+  gap: 16px;
+}
+
+.nav a {
+  color: #555;
+  text-decoration: none;
+  font-size: 15px;
+  padding: 4px 2px;
+}
+
+.nav a.router-link-active {
+  color: var(--el-color-primary);
+  font-weight: 600;
+}
+
+.search-box {
+  flex: 1;
+  max-width: 360px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.avatar {
+  cursor: pointer;
+  background: var(--el-color-primary-light-5);
+}
+
+.content {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px 16px 60px;
+  width: 100%;
+}
+</style>
