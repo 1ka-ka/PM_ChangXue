@@ -30,6 +30,13 @@ def create_app() -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
+        # dev：SQLite 文件库自动建表 + seed 标签（生产 MySQL 走 Alembic，禁止手改）
+        if settings.APP_ENV == "dev":
+            from app.core.database import Base, engine
+            from scripts.seed import run as seed_tags
+
+            Base.metadata.create_all(engine)
+            seed_tags()
         # 定时任务：榜单结算（测试环境跳过，避免与内存库冲突）
         scheduler = start_scheduler(settings.APP_ENV)
         yield

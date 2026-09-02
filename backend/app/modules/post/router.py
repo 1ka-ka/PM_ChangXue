@@ -14,6 +14,17 @@ from app.modules.post.schemas import PostCreateIn, PostUpdateIn
 router = APIRouter()
 
 
+@router.get("/tags")
+def list_tags(db: Session = Depends(get_db)):
+    """公开标签列表（发帖选择用）：仅启用标签，按 sort 排序。"""
+    from sqlalchemy import select
+
+    from app.models import Tag
+
+    rows = db.execute(select(Tag).where(Tag.enabled == 1).order_by(Tag.sort, Tag.id)).scalars().all()
+    return ok({"items": [{"id": t.id, "name": t.name, "sort": t.sort} for t in rows]})
+
+
 @router.post("/posts")
 def create_post(
     body: PostCreateIn,

@@ -47,6 +47,16 @@ def delete_answer(
     return ok(None)
 
 
+@router.get("/comments")
+def list_comments(
+    target_type: int,
+    target_id: int,
+    db: Session = Depends(get_db),
+):
+    """评论树查询（回答评论按需拉取；帖子评论已随详情返回）。"""
+    return ok(comments.list_comments(db, target_type, target_id))
+
+
 class CommentCreateIn(BaseModel):
     target_type: int = Field(ge=1, le=3)
     target_id: int
