@@ -14,6 +14,8 @@ from app.modules.credit.router import router as credit_router
 from app.modules.post.router import router as post_router
 from app.modules.post.interaction_router import router as interaction_router
 from app.modules.accept.router import router as accept_router
+from app.modules.feed.router import router as feed_router
+from app.modules.search.router import router as search_router
 
 
 def create_app() -> FastAPI:
@@ -35,6 +37,8 @@ def create_app() -> FastAPI:
     app.include_router(post_router, prefix="/api")
     app.include_router(interaction_router, prefix="/api")
     app.include_router(accept_router, prefix="/api")
+    app.include_router(feed_router, prefix="/api")
+    app.include_router(search_router, prefix="/api")
 
     # 上传文件静态服务（头像/帖子图片）
     from pathlib import Path

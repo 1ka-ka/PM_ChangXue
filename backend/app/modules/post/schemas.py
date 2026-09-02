@@ -40,6 +40,7 @@ class PostCard(BaseModel):
     view_count: int
     tags: list[TagItem]
     is_rewarded: bool = False  # 悬赏标记
+    no_answer_days: int | None = None  # 待解决帖超阈值无新回答时非 null（PRD §6.1）
     created_at: datetime
 
 

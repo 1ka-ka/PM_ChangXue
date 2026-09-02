@@ -43,6 +43,15 @@ def _tags_of(db: Session, post_id: int) -> list[TagItem]:
     return [TagItem(id=t.id, name=t.name) for t in rows]
 
 
+def _no_answer_days(post: Post) -> int | None:
+    """待解决帖超 NO_ANSWER_MARK_DAYS 且无新回答 → 距最近回答（无回答则发帖）天数，否则 None。"""
+    if post.status != 0:
+        return None
+    base = post.last_answer_at or post.created_at
+    days = (datetime.now() - base).days
+    return days if days > settings.NO_ANSWER_MARK_DAYS else None
+
+
 def _card(db: Session, post: Post, author: User | None = None) -> dict:
     if author is None:
         author = db.get(User, post.author_id)
@@ -59,6 +68,7 @@ def _card(db: Session, post: Post, author: User | None = None) -> dict:
         view_count=post.view_count,
         tags=_tags_of(db, post.id),
         is_rewarded=post.reward > 0,
+        no_answer_days=_no_answer_days(post),
         created_at=post.created_at,
     ).model_dump()
 

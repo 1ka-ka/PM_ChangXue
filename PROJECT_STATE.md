@@ -35,7 +35,7 @@
 | S4  | 发帖提问（含悬赏）              | ✅ 完成（2026-09-02） | 发帖（悬赏同事务扣分/40902 整体回滚）、详情 view 递增、15 分钟编辑窗口、软删悬赏不退、我的帖子过滤；pytest 53/53 全绿 |
 | S5  | 回答与双层评论互动              | ✅ 完成（2026-09-02） | 回答（40904 自答/重复、40905/40906 采纳锁、计数维护、最佳>采纳>赞排序）；双层评论（40909 封顶、级联软删）；点赞/收藏 toggle（幂等、40910）；pytest 62/62 全绿 |
 | S6  | 采纳状态机与知识库              | ✅ 完成（2026-09-02） | AcceptService.accept 单事务 8 步（首采置已解决+knowledge_item+credit.grant(30)+感谢值三周期+通知）；采纳上限 3（40901）/重复 40907/非提问者 40301/不存在 40002；set_best 仅已采纳（40908）先清后置零账务；日封顶截断积分但感谢值照常；pytest 67/67 全绿 |
-| S7  | 广场三 Tab 与搜索降级          | ⬜ 未开始 | -  |
+| S7  | 广场三 Tab 与搜索降级          | ✅ 完成（2026-09-02） | feed 模块（latest/unsolved/recommend 三 Tab；推荐分 heat+reward/10-decay，权重进 app\_config；悬赏加权、14 天衰减-50）；PostCard 增加 no\_answer\_days 标注；search 模块（知识库优先→降级广场写 search\_degrade 埋点→source=empty 两级空结果；标题/内容模糊+标签筛选）；pytest 74/74 全绿 |
 | S8  | 通知中心与助人榜结算             | ⬜ 未开始 | -  |
 | S9  | 举报与管理后台                | ⬜ 未开始 | -  |
 | S10 | 埋点与 LLM 网关契约（后端收官全量回归） | ⬜ 未开始 | -  |
@@ -74,12 +74,12 @@
 
 ## 4. 下一步
 
-**启动 S7：广场三 Tab 与搜索降级**（交付文档 §3.S7）
+**启动 S8：通知中心与助人榜结算**（交付文档 §3.S8）
 
-- 广场三 Tab：最新（created_at 倒序）/ 待解决（status=0，含悬赏加权）/ 知识库（knowledge_item 联查 post）
-- 推荐分公式（悬赏加权 + 衰减阈值 DECAY_DAYS）+ 标签筛选
-- 搜索：关键词 LIKE 匹配标题/内容（P0 降级方案），知识库消费联查
-- TC-feed/search 全组通过后更新本文件
+- notify 模块：通知列表（分页）/ 未读计数（>99 语义值 100）/ 全部已读（接口 25-27）
+- rank 模块：GET /ranks?period=week/month（读 rank\_snapshot，未结算返回上期+settling: true，接口 24）
+- APScheduler 定时结算：每周一 00:05 结算上周 gratitude\_stat → rank\_snapshot（周/月）
+- TC-notify/rank 全组通过后更新本文件
 
 ## 5. 待办决策队列（不阻塞 MVP，按期评审）
 
@@ -102,4 +102,5 @@
 | 2026-09-02 | **S4 完成**：post 模块（发帖悬赏同事务扣分/40902 整体回滚、详情 view 递增、15 分钟编辑窗口+40301、软删悬赏不退、我的帖子状态过滤、LLM 摘要 P0 零调用），pytest 53/53 全绿；**跨方言坑点**：SQLite CURRENT\_TIMESTAMP 为 UTC 与本地时间倒挂 → 时间戳统一 Python 侧 default/onupdate | \[待补充] |
 | 2026-09-02 | **S5 完成**：回答（40904 自问自答/重复回答、40905/40906 已采纳锁、answer\_count/last\_answer\_at 维护、最佳>采纳>点赞排序）；双层评论（40909 二层封顶、删除级联软删）；点赞/收藏 toggle（联合主键幂等、40910 评论不可收藏）；帖子详情挂载 answers+comments 树；pytest 62/62 全绿 | \[待补充] |
 | 2026-09-02 | **S6 完成**：accept 模块（accept 单事务 8 步编排：校验→is\_accepted→首采置已解决+knowledge\_item→credit.grant(30)→感谢值周/月/累计三周期→通知；40901 上限/40907 重复/40301 权限；set\_best 40908 先清后置零账务）；pytest 67/67 全绿；**测试坑点**：回答列表按 最佳>采纳>点赞>时间倒序 排序，测试取"某回答者的回答"必须按 author\_id 定位而非列表下标 | \[待补充] |
+| 2026-09-02 | **S7 完成**：feed 模块（三 Tab：latest=id 倒序 / unsolved=待解决按推荐分 / recommend=推荐分倒序；推荐分公式 heat+reward/10-decay，权重参数 feed.* 进 app\_config 可运行时覆盖；decay 仅作用于待解决帖且超 DECAY\_DAYS 天 -50）；PostCard 新增 no\_answer\_days（待解决帖超 7 天无新回答标注，基准=last\_answer\_at 或 created\_at）；search 模块（knowledge\_item JOIN post 标题模糊优先→未命中降级广场标题/内容模糊并写 search\_degrade 埋点（关键词+广场结果数）→均无 source=empty；q/tag\_id 至少一项否则 40001；LIKE autoescape 防注入）；pytest 74/74 全绿 | \[待补充] |
 
