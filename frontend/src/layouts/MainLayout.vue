@@ -48,6 +48,17 @@ const dmBadgeText = computed(() =>
       : '',
 )
 
+// 二级导航：主页面功能入口（点击后整页切换内容）
+const subTabs = [
+  { path: '/feed', label: '广场' },
+  { path: '/ranks', label: '助人榜' },
+  { path: '/mall', label: '商城' },
+]
+
+const subActive = computed(() =>
+  subTabs.some((t) => t.path === route.path) ? route.path : '',
+)
+
 function onSearch() {
   const q = keyword.value.trim()
   if (!q) return
@@ -76,19 +87,6 @@ function onCommand(cmd: string) {
     <header class="topbar">
       <div class="topbar-inner">
         <router-link to="/feed" class="logo">畅学</router-link>
-
-        <div class="search-box">
-          <el-input
-            v-model="keyword"
-            placeholder="搜索问题 / 知识库"
-            clearable
-            @keyup.enter="onSearch"
-          >
-            <template #append>
-              <el-button @click="onSearch">搜索</el-button>
-            </template>
-          </el-input>
-        </div>
 
         <div class="actions">
           <el-badge :value="badgeText" :hidden="!badgeText" :max="99">
@@ -139,6 +137,34 @@ function onCommand(cmd: string) {
       </div>
     </header>
 
+    <!-- 第二标题栏：功能入口 + 搜索（点击后整页切换内容） -->
+    <nav class="subnav">
+      <div class="subnav-inner">
+        <router-link
+          v-for="t in subTabs"
+          :key="t.path"
+          :to="t.path"
+          class="subtab"
+          :class="{ active: subActive === t.path }"
+        >
+          {{ t.label }}
+        </router-link>
+
+        <div class="search-box">
+          <el-input
+            v-model="keyword"
+            placeholder="搜索问题 / 知识库"
+            clearable
+            @keyup.enter="onSearch"
+          >
+            <template #append>
+              <el-button @click="onSearch">搜索</el-button>
+            </template>
+          </el-input>
+        </div>
+      </div>
+    </nav>
+
     <main class="content">
       <router-view :key="route.fullPath" />
     </main>
@@ -177,9 +203,48 @@ function onCommand(cmd: string) {
   letter-spacing: 2px;
 }
 
-.search-box {
+.subnav {
+  position: sticky;
+  top: 56px; /* 紧贴第一标题栏下沿 */
+  z-index: 99;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.subnav-inner {
+  max-width: 1000px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 48px;
+  padding: 0 16px;
+}
+
+.subtab {
+  color: #555;
+  text-decoration: none;
+  font-size: 15px;
+  padding: 6px 16px;
+  border-radius: 6px;
+  transition: all 0.15s;
+}
+
+.subtab:hover {
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
+}
+
+.subtab.active {
+  color: var(--el-color-primary);
+  font-weight: 600;
+  background: var(--el-color-primary-light-9);
+}
+
+.subnav .search-box {
   flex: 1;
   max-width: 360px;
+  margin-left: auto;
 }
 
 .actions {
