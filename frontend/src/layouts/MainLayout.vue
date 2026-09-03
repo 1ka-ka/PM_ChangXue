@@ -83,7 +83,7 @@ function onCommand(cmd: string) {
 </script>
 
 <template>
-  <el-container class="layout">
+  <div class="layout">
     <header class="topbar">
       <div class="topbar-inner">
         <router-link to="/feed" class="logo">畅学</router-link>
@@ -168,11 +168,13 @@ function onCommand(cmd: string) {
     <main class="content">
       <router-view :key="route.fullPath" />
     </main>
-  </el-container>
+  </div>
 </template>
 
 <style scoped>
 .layout {
+  display: flex;
+  flex-direction: column; /* 纵向堆叠：顶栏 → 二级导航 → 内容区 */
   min-height: 100vh;
   background: transparent; /* 背景由 body（主题装扮变量）统一绘制 */
 }
