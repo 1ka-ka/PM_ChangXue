@@ -8,9 +8,11 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
+import { useMessageStore } from '@/stores/message'
 
 const auth = useAuthStore()
 const theme = useThemeStore()
+const message = useMessageStore()
 const route = useRoute()
 const router = useRouter()
 const keyword = ref((route.query.q as string) || '')
@@ -19,6 +21,7 @@ onMounted(() => {
   if (auth.isLogged) {
     auth.fetchUnread()
     theme.fetchAndApply()
+    message.fetchUnread()
   }
 })
 
@@ -26,12 +29,23 @@ onMounted(() => {
 watch(
   () => auth.isLogged,
   (logged) => {
-    if (!logged) theme.apply(null)
+    if (!logged) {
+      theme.apply(null)
+      message.reset()
+    }
   },
 )
 
 const badgeText = computed(() =>
   auth.unreadCount > 99 ? '99+' : auth.unreadCount > 0 ? String(auth.unreadCount) : '',
+)
+
+const dmBadgeText = computed(() =>
+  message.unreadCount > 99
+    ? '99+'
+    : message.unreadCount > 0
+      ? String(message.unreadCount)
+      : '',
 )
 
 function onSearch() {
@@ -45,6 +59,8 @@ function onCommand(cmd: string) {
     router.push(`/u/${auth.user?.id}`)
   } else if (cmd === 'notifications') {
     router.push('/notifications')
+  } else if (cmd === 'messages') {
+    router.push('/messages')
   } else if (cmd === 'admin') {
     router.push('/admin')
   } else if (cmd === 'logout') {
@@ -86,6 +102,12 @@ function onCommand(cmd: string) {
             </el-button>
           </el-badge>
 
+          <el-badge :value="dmBadgeText" :hidden="!dmBadgeText" :max="99">
+            <el-button circle title="私信" @click="router.push('/messages')">
+              <el-icon><ChatDotRound /></el-icon>
+            </el-button>
+          </el-badge>
+
           <el-button type="primary" round @click="router.push('/posts/create')">
             提问
           </el-button>
@@ -103,6 +125,7 @@ function onCommand(cmd: string) {
                   <el-dropdown-item command="notifications" divided>
                     通知中心
                   </el-dropdown-item>
+                  <el-dropdown-item command="messages">我的私信</el-dropdown-item>
                   <el-dropdown-item v-if="auth.user?.is_admin" command="admin">
                     管理后台
                   </el-dropdown-item>

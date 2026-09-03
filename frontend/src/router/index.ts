@@ -38,6 +38,12 @@ const router = createRouter({
           component: () => import('@/views/NotificationsView.vue'),
           meta: { requiresAuth: true },
         },
+        {
+          path: 'messages',
+          name: 'messages',
+          component: () => import('@/views/MessagesView.vue'),
+          meta: { requiresAuth: true },
+        },
         { path: 'ranks', name: 'ranks', component: () => import('@/views/RankView.vue') },
         {
           path: 'u/:id',

@@ -259,6 +259,15 @@ function fmtTime(s: string | null) {
               <el-button size="small" round @click="openEdit">编辑资料</el-button>
               <el-button size="small" round @click="openTheme">装扮</el-button>
             </template>
+            <el-button
+              v-else-if="auth.isLogged"
+              size="small"
+              round
+              type="primary"
+              @click="router.push(`/messages?to=${info?.id}&name=${encodeURIComponent(info?.nickname || '')}`)"
+            >
+              发私信
+            </el-button>
           </div>
           <p class="sub">
             <span v-if="info?.school">{{ info.school }}</span>
