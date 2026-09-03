@@ -45,6 +45,7 @@ const router = createRouter({
           meta: { requiresAuth: true },
         },
         { path: 'ranks', name: 'ranks', component: () => import('@/views/RankView.vue') },
+        { path: 'mall', name: 'mall', component: () => import('@/views/MallView.vue') },
         {
           path: 'u/:id',
           name: 'profile',

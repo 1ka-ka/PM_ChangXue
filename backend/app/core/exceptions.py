@@ -50,6 +50,7 @@ class ErrCode:
     LOW_QUALITY_ANSWER = 40913  # AI 判定回答质量过低（V1.3）
     SMS_TOO_FREQUENT = 40914  # 验证码发送过于频繁（60s 内，V1.4）
     SMS_DAILY_LIMIT = 40915  # 验证码当日发送次数超限（V1.4）
+    MALL_OUT_OF_STOCK = 40916  # 商品库存不足或已下架（V1.8）
 
     # ---- 500xx 服务器 ----
     INTERNAL = 50001

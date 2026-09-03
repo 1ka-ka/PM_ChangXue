@@ -80,6 +80,7 @@ function onCommand(cmd: string) {
         <nav class="nav">
           <router-link to="/feed">广场</router-link>
           <router-link to="/ranks">助人榜</router-link>
+          <router-link to="/mall">商城</router-link>
         </nav>
 
         <div class="search-box">
