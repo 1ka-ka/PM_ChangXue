@@ -5,7 +5,7 @@
 | 项目     | 内容                                                                               |
 | ------ | -------------------------------------------------------------------------------- |
 | 最近更新   | 2026-09-03                                                                       |
-| 当前阶段   | **V1.x 迭代中（V1.7.0 私信上线；进行中：积分商城→部署；版本策略：每功能测试无误即小版本自动推送远端）**      |
+| 当前阶段   | **V1.x 迭代中（V1.9.0 演练验收通过，功能全量收官；待办：真机服务器部署；版本策略：每功能测试无误即小版本自动推送远端）**      |
 | 文档体系版本 | PRD V1.0 / 详述 V1.0 / MVP 清单 M1.0 / 技术对比 V1.0 / ARCH V1.0 / 技术细节 V1.0 / 交付文档 V1.0 |
 
 ***
@@ -93,11 +93,13 @@
 
 - ✅ V1.8.0 积分商城（见更新日志）
 
-- 进行中：V1.9.0 部署上线（用户决策：先把所有功能跑通，最后统一部署）
+- ✅ V1.9.0 MySQL 迁移演练 + 积分/商城并发验收（本机 8.0.43 真机，见更新日志）
+
+- 待办：V1.9.1 真机服务器部署（deploy.sh 一键，演练已固化流程；剩余动作=购置/接入服务器后执行）
 
 - 候选：相似推荐升级为 LLM 语义（P1）
 
-- S12 遗留：MySQL 真机迁移演练与积分并发用例（需服务器，deploy.sh 已固化流程）
+- ~~S12 遗留：MySQL 真机迁移演练与积分并发用例~~（已随 V1.9.0 本机真机演练闭环，2026-09-03）
 
 **S11a 版本偏差说明**（相对技术细节文档 §1.2）：脚手架生态为 Vue 3.5 / TS 6.0 / Vite 8 / Router 5 / Pinia 4 / Element Plus 2.14（文档写 TS 5.4/Vite 5/Router 4/Pinia 2.1）；openapi-typescript 7.13 声明 peer TS ^5.x 与 TS 6 冲突，以 frontend/.npmrc legacy-peer-deps 固化（实测生成正常）；TS 6 弃用 baseUrl，paths 直接使用相对映射。
 
@@ -141,3 +143,4 @@
 | 2026-09-03 | **V1.6.0 主题装扮上线**：GET/PUT /account/theme（GET ?user_id= 公开可读/缺省读本人（optional_user 降级匿名）；PUT 整替语义，空串/null 清除单项、全空恢复默认（theme_config 置 NULL）；ThemeIn 校验 #RRGGBB 颜色与 /uploads/ 本站路径（外站 URL/非法色 40001），theme_config 列 S1 已预留零迁移）；前端 stores/theme.ts（apply 写 :root CSS 变量 --cx-theme-bg/bg-image/primary，fetchAndApply 登录拉取静默降级，save 保存即全局生效）+ MainLayout 登录应用/退出恢复 + ProfileView 装扮对话框（主题色/背景色 color-picker + 背景图 /uploads/image 上传预览移除 + 恢复默认）；style.css body 绘制背景图（cover+fixed）+ Element Plus 主色映射 --el-color-primary 系 color-mix 派生；test_account.py 占位测试替换为 3 用例（默认读/整替+公开读/校验与 401）；pytest **138/138 全绿** + vue-tsc build 零错误；**P-002 第 10 次回滚**（Edit 锚点失败信号→Read 复核确认→git checkout HEAD 恢复后继续） | [待补充] |
 | 2026-09-03 | **V1.7.0 私信上线**：①**双表**（迁移 e8a1c4f7d203）：dm\_conversation（user\_a\_id<user\_b\_id 唯一键保证一对用户一会话，a/b\_last\_read\_id 游标已读，last\_message\_id 冗余联查）+ dm\_message（纯文本 500 字，conversation\_id+id 索引）；时间戳统一 Python 侧 default（SQLite UTC 坑点沿用）；②**四接口**：GET /messages/conversations（updated\_at 倒序+对方 brief+末条摘要+未读数子查询）/ GET /messages/conversations/{id}（id 倒序分页，拉取即自动推进已读游标）/ POST /messages（自发自 40001/接收方不存在或软删 40002/敏感词 40003/空白与超长 40001）/ GET /messages/unread-count（跨会话求和）；③**前端**：stores/message.ts 未读角标共享（静默降级）+ MessagesView QQ 式左右布局（会话列表/气泡对话/8s 轮询无 WebSocket/?to=uid&name 直达新会话）+ 顶栏私信图标角标与下拉「我的私信」+ 他人主页「发私信」按钮；④test\_dm.py 6 用例（发送+未读+已读清零/双向同会话/校验/权限 401+40002/多会话排序+分页/软删拒收）；pytest **144/144 全绿** + build 零错误 + **真实 uvicorn 冒烟 12/12**（含 V1.6 主题回归与通知共存）；**坑点**：测试手机号前缀+号段联合唯一——test\_credit 内部直接建 User 也占 139+2M 号段，与 test\_dm 原 139+2M 撞号（单模块过、全量挂），改 137+1M 独立号段（与 test\_similar 137+5M 前缀同但号段不叠） | [待补充] |
 | 2026-09-03 | **V1.8.0 积分商城上线**：①**双表**（迁移 f2b6d9a3c514）：mall\_product（名称/描述/积分售价/库存-1 不限量/类型 1 虚拟 2 实物/enabled 上下架）+ mall\_exchange（user 索引+商品名与成交价快照（商品可改名改价）+status 1 待发货 2 已完成）；②**三接口**：GET /mall/products（免登录浏览，id 正序分页）/ POST /mall/exchange（单事务原子兑换：MySQL FOR UPDATE 锁商品行防超卖→库存/下架校验 40916→落记录（虚拟即完成 status=2、实物待发货 status=1）→credit.deduct source=7 扣分（不足 40902 整体回滚库存不减）→减库存；ref\_type=4 扩展通用对象枚举）/ GET /mall/exchanges（我的兑换记录 id 倒序）；③**seed**：脚本扩展 4 示例商品（虚拟头衔/徽章 + 实物贴纸/笔记本，dev 启动自动播种幂等）；④**前端**：MallView 商品卡网格（虚拟/实物标签+库存徽标+余额展示+兑换确认框→成功刷新余额与库存）+ 我的兑换 Tab + 顶栏「商城」导航；⑤test\_mall.py 6 用例（虚拟全链路扣分+流水 source=7+记录/实物库存递减至 0 后 40916/积分不足回滚三重校验/下架与售罄与不存在 40916/免登录浏览与兑换 401/分页正序）；pytest **150/150 全绿** + build 零错误 + smoke 33/33；号段 136（避开 137/138/139） | [待补充] |
+| 2026-09-03 | **V1.9.0 MySQL 迁移演练 + 并发验收通过（部署前置硬约束达成）**：本机 MySQL 8.0.43 建演练库 changxue_drill；①**迁移链双向验证**：alembic upgrade head 5 迁移全过（afeffa03da10→f2b6d9a3c514），downgrade base→upgrade head 完整循环通过；**演练抓出两个真缺陷并修复**：(a) 首版迁移引用 app.core.database.BigInt 未 import（dev 一直走 create_all，Alembic 链从未真跑过）→ 补 import；(b) V1.7 downgrade 先 drop_index 再 drop_table 被 MySQL 1553 拒（FK 依赖索引）→ drop_table 连索引删除；②**积分并发演练**（scripts/concurrency_drill.py，MySQL FOR UPDATE 真机验证）：8 线程×25 次混合 grant/deduct 终余额无丢失+流水 balance_after 链连续+无负余额；0 余额并发扣款 8 笔全部 40902 拒绝；商城 20 线程抢 10 件限量商品零超卖（成功 10/记录 10/库存 0）——**10/10 全过**；③**MySQL 真实 uvicorn 冒烟**：health/注册赠 50/商品列表/兑换扣分/余额全链路 code=0；④deploy.sh 修正：依赖改 pip install -e '.[mysql]' cryptography（原兜底列表 python-jose/passlib 已过时，实际用 PyJWT/bcrypt）+ .env 模板补 LLM_*/SMS_* 配置项 + seed 注释更新（12 标签+4 商品）；pytest **150/150 全绿**；演练脚本沉淀 scripts/concurrency_drill.py（用法：DATABASE_URL 指向 MySQL 后 python -m scripts.concurrency_drill） | [待补充] |

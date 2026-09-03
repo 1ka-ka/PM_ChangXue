@@ -11,6 +11,8 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import mysql
 
+import app.core.database  # BigInt 跨方言类型（MySQL BIGINT / SQLite INTEGER）
+
 # revision identifiers, used by Alembic.
 revision: str = 'afeffa03da10'
 down_revision: Union[str, Sequence[str], None] = None

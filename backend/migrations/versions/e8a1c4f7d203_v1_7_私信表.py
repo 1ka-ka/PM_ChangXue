@@ -47,8 +47,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("idx_dm_msg_conv", table_name="dm_message")
+    # MySQL：FK 依赖索引，drop_table 会连索引一并删除，单独 drop_index 会报 1553
     op.drop_table("dm_message")
-    op.drop_index("idx_dm_conv_b", table_name="dm_conversation")
-    op.drop_index("idx_dm_conv_a", table_name="dm_conversation")
     op.drop_table("dm_conversation")
