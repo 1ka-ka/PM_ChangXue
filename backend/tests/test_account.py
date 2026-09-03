@@ -183,7 +183,74 @@ def test_public_profile_privacy(client):
     assert r.json()["code"] == 40002
 
 
-def test_theme_placeholder(client):
-    """装扮配置占位：恒返回 theme=null。"""
+# ---- 主题装扮（V1.6）：GET/PUT /account/theme ----
+
+
+def test_theme_get_default_and_self(client):
+    """未设置时：匿名 GET 缺省/带 user_id 均返回 null。"""
+    token = _register(client).json()["data"]["token"]
+    h = {"Authorization": f"Bearer {token}"}
+    uid = client.get("/api/auth/me", headers=h).json()["data"]["id"]
+
     r = client.get("/api/account/theme")
-    assert r.json() == {"code": 0, "msg": "ok", "data": {"theme": None}}
+    assert r.json()["data"] == {"theme": None}
+    r = client.get("/api/account/theme", headers=h)
+    assert r.json()["data"] == {"theme": None}
+    r = client.get(f"/api/account/theme?user_id={uid}")
+    assert r.json()["data"] == {"theme": None}
+    r = client.get("/api/account/theme?user_id=99999")
+    assert r.json()["code"] == 40002
+
+
+def test_theme_set_and_public_read(client):
+    """PUT 设置本人装扮：整替语义；GET ?user_id= 公开可读。"""
+    token = _register(client).json()["data"]["token"]
+    h = {"Authorization": f"Bearer {token}"}
+    uid = client.get("/api/auth/me", headers=h).json()["data"]["id"]
+
+    r = client.put(
+        "/api/account/theme",
+        json={
+            "bg_color": "#FFF8E1",
+            "bg_image": "/uploads/post_abcd1234.png",
+            "theme_color": "#FF7043",
+        },
+        headers=h,
+    )
+    assert r.json()["code"] == 0
+    assert r.json()["data"]["theme"] == {
+        "bg_color": "#FFF8E1",
+        "bg_image": "/uploads/post_abcd1234.png",
+        "theme_color": "#FF7043",
+    }
+
+    # 他人/匿名可读
+    r = client.get(f"/api/account/theme?user_id={uid}")
+    assert r.json()["data"]["theme"]["theme_color"] == "#FF7043"
+
+    # 整替：只传 bg_color，其余清除
+    r = client.put("/api/account/theme", json={"bg_color": "#E3F2FD"}, headers=h)
+    assert r.json()["data"]["theme"] == {"bg_color": "#E3F2FD"}
+
+    # 全空恢复默认
+    r = client.put("/api/account/theme", json={"bg_color": "", "bg_image": None}, headers=h)
+    assert r.json()["data"]["theme"] == {}
+
+
+def test_theme_validation_and_auth(client):
+    """非法颜色/外站图片路径 40001；未登录 PUT 40102；查询参数无副作用。"""
+    token = _register(client).json()["data"]["token"]
+    h = {"Authorization": f"Bearer {token}"}
+
+    r = client.put("/api/account/theme", json={"bg_color": "red"}, headers=h)
+    assert r.json()["code"] == 40001
+    r = client.put("/api/account/theme", json={"theme_color": "#12345"}, headers=h)
+    assert r.json()["code"] == 40001
+    r = client.put(
+        "/api/account/theme", json={"bg_image": "https://evil.com/x.png"}, headers=h
+    )
+    assert r.json()["code"] == 40001
+
+    r = client.put("/api/account/theme", json={"bg_color": "#FFFFFF"})
+    assert r.status_code == 401
+    assert r.json()["code"] == 40102

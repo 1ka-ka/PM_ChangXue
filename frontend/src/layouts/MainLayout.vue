@@ -1,14 +1,16 @@
 <script setup lang="ts">
 /**
  * 主布局：知乎式固定顶栏（logo / 搜索 / 通知铃铛 / 发帖 / 头像菜单）+ 内容区。
- * 主题装扮（PRD P2 预留）：根元素挂 CSS 变量 --cx-theme-bg，未来由用户主页设置驱动。
+ * 主题装扮（V1.6）：登录后拉取本人 theme_config 注入 CSS 变量，退出恢复默认。
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
+import { useThemeStore } from '@/stores/theme'
 
 const auth = useAuthStore()
+const theme = useThemeStore()
 const route = useRoute()
 const router = useRouter()
 const keyword = ref((route.query.q as string) || '')
@@ -16,8 +18,17 @@ const keyword = ref((route.query.q as string) || '')
 onMounted(() => {
   if (auth.isLogged) {
     auth.fetchUnread()
+    theme.fetchAndApply()
   }
 })
+
+// 顶栏内退出登录时恢复默认主题（登录跳转会重新挂载本布局并拉取装扮）
+watch(
+  () => auth.isLogged,
+  (logged) => {
+    if (!logged) theme.apply(null)
+  },
+)
 
 const badgeText = computed(() =>
   auth.unreadCount > 99 ? '99+' : auth.unreadCount > 0 ? String(auth.unreadCount) : '',
@@ -116,7 +127,7 @@ function onCommand(cmd: string) {
 <style scoped>
 .layout {
   min-height: 100vh;
-  background: var(--cx-theme-bg, #f6f6f6);
+  background: transparent; /* 背景由 body（主题装扮变量）统一绘制 */
 }
 
 .topbar {

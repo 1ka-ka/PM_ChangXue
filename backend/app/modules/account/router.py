@@ -19,6 +19,7 @@ from app.modules.account.schemas import (
     ResetPasswordIn,
     SmsLoginIn,
     SmsSendIn,
+    ThemeIn,
 )
 
 router = APIRouter()
@@ -111,6 +112,23 @@ def user_profile(
 
 
 @router.get("/account/theme")
-def theme(user_id: int | None = None):
-    """用户装扮配置（P0 占位：恒返回默认值 null；P2 返回 theme_config）。"""
-    return ok({"theme": None})
+def theme(
+    user_id: int | None = None,
+    viewer: User | None = Depends(optional_user),
+    db: Session = Depends(get_db),
+):
+    """用户装扮配置（V1.6 起生效）：?user_id= 指定用户（公开）；缺省为当前登录用户。"""
+    if user_id is None:
+        return ok({"theme": viewer.theme_config if viewer else None})
+    return ok({"theme": service.get_theme(db, user_id)})
+
+
+@router.put("/account/theme")
+def update_theme(
+    body: ThemeIn,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """设置本人装扮（V1.6）：整替语义，全空恢复默认。"""
+    theme = service.update_theme(db, user, body.bg_color, body.bg_image, body.theme_color)
+    return ok({"theme": theme})

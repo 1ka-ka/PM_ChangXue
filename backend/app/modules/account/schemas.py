@@ -43,6 +43,27 @@ class ProfileUpdateIn(BaseModel):
         return self
 
 
+class ThemeIn(BaseModel):
+    """主题装扮（V1.6）：整替语义，传 null/空串清除该项。"""
+
+    bg_color: str | None = Field(default=None, max_length=7)  # #RRGGBB
+    bg_image: str | None = Field(default=None, max_length=255)  # 仅允许本站 /uploads/ 路径
+    theme_color: str | None = Field(default=None, max_length=7)  # #RRGGBB
+
+    @model_validator(mode="after")
+    def validate_values(self):
+        import re
+
+        hex_re = re.compile(r"^#[0-9a-fA-F]{6}$")
+        for name in ("bg_color", "theme_color"):
+            v = getattr(self, name)
+            if v and not hex_re.match(v):
+                raise ValueError(f"{name} 须为 #RRGGBB 颜色值")
+        if self.bg_image and not re.match(r"^/uploads/[\w.-]+$", self.bg_image):
+            raise ValueError("bg_image 仅允许本站上传图片路径")
+        return self
+
+
 class UserBrief(BaseModel):
     id: int
     nickname: str

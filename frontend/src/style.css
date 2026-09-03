@@ -1,8 +1,17 @@
-/* 全局基础样式 + 主题装扮变量预留（PRD P2：用户自定义主页背景/主题装饰接口） */
+/* 全局基础样式 + 主题装扮变量（V1.6：用户设置驱动覆盖，见 stores/theme.ts） */
 :root {
-  /* 主题变量：默认清爽蓝；P2 由用户设置驱动覆盖 */
+  /* 主题变量：默认清爽蓝；登录后由本人 theme_config 注入覆盖 */
   --cx-theme-bg: #f6f6f6;
+  --cx-theme-bg-image: none;
   --cx-theme-primary: #409eff;
+  /* Element Plus 主色映射：主题色装扮同步作用于按钮/链接等组件 */
+  --el-color-primary: var(--cx-theme-primary);
+  --el-color-primary-light-3: color-mix(in srgb, var(--cx-theme-primary) 70%, white);
+  --el-color-primary-light-5: color-mix(in srgb, var(--cx-theme-primary) 50%, white);
+  --el-color-primary-light-7: color-mix(in srgb, var(--cx-theme-primary) 30%, white);
+  --el-color-primary-light-8: color-mix(in srgb, var(--cx-theme-primary) 20%, white);
+  --el-color-primary-light-9: color-mix(in srgb, var(--cx-theme-primary) 10%, white);
+  --el-color-primary-dark-2: color-mix(in srgb, var(--cx-theme-primary) 80%, black);
 }
 
 * {
@@ -16,7 +25,11 @@ body {
   font-family:
     -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
     'Microsoft YaHei', sans-serif;
-  background: var(--cx-theme-bg);
+  background-color: var(--cx-theme-bg);
+  background-image: var(--cx-theme-bg-image);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
   color: #333;
   font-size: 14px;
 }

@@ -9,6 +9,7 @@ import { get, put } from '@/api/http'
 import type { Page, PostCard } from '@/api/types'
 import PostCardItem from '@/components/PostCardItem.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useThemeStore, type ThemeConfig } from '@/stores/theme'
 
 interface Gratitude {
   week: number
@@ -49,6 +50,7 @@ interface FavAnswerItem {
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const themeStore = useThemeStore()
 
 const info = ref<ProfileInfo | null>(null)
 const loading = ref(false)
@@ -179,6 +181,58 @@ async function uploadAvatar(evt: Event) {
   (evt.target as HTMLInputElement).value = ''
 }
 
+// ---- 主题装扮（V1.6）：本人设置背景色/背景图/主题色，保存后即时生效 ----
+
+const themeVisible = ref(false)
+const themeForm = ref<ThemeConfig>({})
+const themeSaving = ref(false)
+
+function openTheme() {
+  themeForm.value = { ...(themeStore.theme || {}) }
+  themeVisible.value = true
+}
+
+async function uploadBg(evt: Event) {
+  const file = (evt.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  const fd = new FormData()
+  fd.append('file', file)
+  try {
+    const { http } = await import('@/api/http')
+    const r = (await http.post('/uploads/image', fd)) as { url: string }
+    themeForm.value.bg_image = r.url
+  } catch {
+    // 拦截器已提示
+  }
+  (evt.target as HTMLInputElement).value = ''
+}
+
+async function saveTheme() {
+  themeSaving.value = true
+  try {
+    await themeStore.save(themeForm.value)
+    ElMessage.success('装扮已更新')
+    themeVisible.value = false
+  } catch {
+    // 拦截器已提示
+  } finally {
+    themeSaving.value = false
+  }
+}
+
+async function resetTheme() {
+  themeSaving.value = true
+  try {
+    await themeStore.save({})
+    themeForm.value = {}
+    ElMessage.success('已恢复默认装扮')
+  } catch {
+    // 拦截器已提示
+  } finally {
+    themeSaving.value = false
+  }
+}
+
 function fmtTime(s: string | null) {
   return s ? new Date(s).toLocaleString('zh-CN', { hour12: false }) : ''
 }
@@ -201,7 +255,10 @@ function fmtTime(s: string | null) {
         <div class="info">
           <div class="name-row">
             <h2>{{ info?.nickname }}</h2>
-            <el-button v-if="isSelf" size="small" round @click="openEdit">编辑资料</el-button>
+            <template v-if="isSelf">
+              <el-button size="small" round @click="openEdit">编辑资料</el-button>
+              <el-button size="small" round @click="openTheme">装扮</el-button>
+            </template>
           </div>
           <p class="sub">
             <span v-if="info?.school">{{ info.school }}</span>
@@ -324,6 +381,43 @@ function fmtTime(s: string | null) {
       <template #footer>
         <el-button @click="editVisible = false">取消</el-button>
         <el-button type="primary" :loading="saving" @click="saveEdit">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 主题装扮（本人） -->
+    <el-dialog v-model="themeVisible" title="主题装扮" width="440px">
+      <el-form label-width="90px" label-position="left">
+        <el-form-item label="主题色">
+          <el-color-picker v-model="themeForm.theme_color" />
+          <span class="theme-tip">作用于按钮、链接等元素</span>
+        </el-form-item>
+        <el-form-item label="背景颜色">
+          <el-color-picker v-model="themeForm.bg_color" />
+          <span class="theme-tip">设置背景图后作为底色</span>
+        </el-form-item>
+        <el-form-item label="背景图片">
+          <div class="bg-row">
+            <label class="bg-upload" title="上传背景图">
+              <el-icon><Plus /></el-icon>
+              <input type="file" accept="image/jpeg,image/png,image/webp" hidden @change="uploadBg" />
+            </label>
+            <img v-if="themeForm.bg_image" :src="themeForm.bg_image" class="bg-preview" alt="背景预览" />
+            <el-button
+              v-if="themeForm.bg_image"
+              text
+              type="danger"
+              size="small"
+              @click="themeForm.bg_image = ''"
+            >
+              移除
+            </el-button>
+          </div>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="themeVisible = false">取消</el-button>
+        <el-button :loading="themeSaving" @click="resetTheme">恢复默认</el-button>
+        <el-button type="primary" :loading="themeSaving" @click="saveTheme">保存</el-button>
       </template>
     </el-dialog>
   </div>
@@ -510,6 +604,43 @@ function fmtTime(s: string | null) {
   padding: 40px;
   text-align: center;
   color: #999;
+}
+
+/* 主题装扮对话框 */
+.theme-tip {
+  margin-left: 12px;
+  color: #999;
+  font-size: 12px;
+}
+
+.bg-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bg-upload {
+  width: 64px;
+  height: 40px;
+  border: 1px dashed var(--el-border-color);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #999;
+}
+
+.bg-upload:hover {
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
+}
+
+.bg-preview {
+  width: 96px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 6px;
 }
 
 .pager {

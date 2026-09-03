@@ -4,8 +4,8 @@
 
 | 项目     | 内容                                                                               |
 | ------ | -------------------------------------------------------------------------------- |
-| 最近更新   | 2026-09-02                                                                       |
-| 当前阶段   | **V1.x 迭代中（V1.5.0 AI 无人值守兜底上线；进行中：主题装扮→私信→积分商城→部署；版本策略：每功能测试无误即小版本自动推送远端）**      |
+| 最近更新   | 2026-09-03                                                                       |
+| 当前阶段   | **V1.x 迭代中（V1.6.0 主题装扮上线；进行中：私信→积分商城→部署；版本策略：每功能测试无误即小版本自动推送远端）**      |
 | 文档体系版本 | PRD V1.0 / 详述 V1.0 / MVP 清单 M1.0 / 技术对比 V1.0 / ARCH V1.0 / 技术细节 V1.0 / 交付文档 V1.0 |
 
 ***
@@ -87,7 +87,9 @@
 
 - ✅ V1.5.0 AI 无人值守兜底（见更新日志）
 
-- 进行中：V1.6.0 主题装扮 → V1.7.0 私信 → V1.8.0 积分商城 → V1.9.0 部署上线（用户决策：先把所有功能跑通，最后统一部署）
+- ✅ V1.6.0 主题装扮（见更新日志）
+
+- 进行中：V1.7.0 私信 → V1.8.0 积分商城 → V1.9.0 部署上线（用户决策：先把所有功能跑通，最后统一部署）
 
 - 候选：相似推荐升级为 LLM 语义（P1）
 
@@ -131,5 +133,5 @@
 | 2026-09-02 | **P-002 第八次回滚**：V1.3 收尾时本文件再次被整体重置回"S0 未启动"初版（git checkout HEAD -- PROJECT\_STATE.md 原子恢复后继续，未丢失 V1.3 记录）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | \[待补充] |
 | 2026-09-02 | **V1.4.0 短信验证码登录 + 找回密码**：①**sms\_code 表**（迁移 c5f8a2e6b901：phone/code/scene(2登录 3找回)/used/expired\_at + 双索引）；②**发送接口** POST /auth/sms/send（60s 同手机号同场景频控 40914 + 日限额 SMS\_DAILY\_LIMIT=10 40915 + 登录/找回场景预校验手机号已注册 + 发送失败不落库可立即重试）；③**短信登录** POST /auth/sms/login（一次性校验 40104：最新未用记录匹配+未过期→used=1；封禁检查同密码登录）；④**找回密码** POST /auth/reset-password（scene=3 校验→重置哈希，旧密码立即失效；场景隔离：找回码不能登录）；⑤**provider 适配层** account/sms.py：dev（验证码写日志+响应回传 debug\_code 仅 dev）/aliyun（SDK 懒加载，pyproject optional-deps `sms`，未装/未配 Key→50001 提示）；配置 SMS\_\* 十项进 Settings；错误码 40104/40914/40915；⑥**前端**：LoginView 三 Tab（密码/短信/注册）+ 短信 Tab 验证码发送 60s 倒计时 + 忘记密码视图（发码+新密码重置）+ dev 模式 debug\_code 自动回填提示；auth store 加 smsLogin；⑦test\_sms.py 11 用例（发送 debug\_code/频控/日限 monkeypatch/未注册 40001/全链路登录+me/错误码不消耗/一次性/过期改库/重置后新旧密码/重置码一次性/场景隔离）；pytest **131/131 全绿** + build 零错误 + **真实 uvicorn 冒烟通过**（发码→频控→登录→me→找回→新密码登录→旧密码 40101→复用 40104）                                                                               | \[待补充] |
 | 2026-09-02 | **P-002 第九次回滚**：V1.4 收尾更新本文件时再次被重置回初版（Edit 锚点失败信号 + Read 复核确认，git checkout HEAD 恢复后叠加 V1.4 记录；表尾长行空格敏感，改用 Python 追加）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | \[待补充] |
-
-\| 2026-09-02 | **V1.5.0 AI 无人值守兜底**：jobs/ai\_fallback.py（run\_ai\_fallback：候选=软删外+answer\_count=0+ai\_answer 空+created\_at<=now-30min，created\_at 升序取最老，limit AI\_FALLBACK\_BATCH=5；逐帖独立会话重验四条件防扫描窗口竞态；gateway.invoke(ref\_answer) 失败静默下轮重试；LLM/兜底关闭直接空转）；注册 main lifespan（scheduler 非 None 时 interval 5 分钟，测试环境不注册）；配置 AI\_FALLBACK\_\* 四项进 Settings；前端零改动（详情页已渲染 ai\_answer）；test\_ai\_fallback.py 5 用例（超时生成+新帖跳过/已答已生成跳过/降级静默/批量上限+最老优先/LLM 关闭空转）；pytest **136/136 全绿**；**坑点**：测试环境 LLM\_ENABLED 恒 false，mock 用例须显式 setattr(settings, LLM\_ENABLED, True) 且 disabled 用例勿用会打开开关的 \_mock\_invoke 辅助 | \[待补充] |
+| 2026-09-02 | **V1.5.0 AI 无人值守兜底**：jobs/ai\_fallback.py（run\_ai\_fallback：候选=软删外+answer\_count=0+ai\_answer 空+created\_at<=now-30min，created\_at 升序取最老，limit AI\_FALLBACK\_BATCH=5；逐帖独立会话重验四条件防扫描窗口竞态；gateway.invoke(ref\_answer) 失败静默下轮重试；LLM/兜底关闭直接空转）；注册 main lifespan（scheduler 非 None 时 interval 5 分钟，测试环境不注册）；配置 AI\_FALLBACK\_\* 四项进 Settings；前端零改动（详情页已渲染 ai\_answer）；test\_ai\_fallback.py 5 用例（超时生成+新帖跳过/已答已生成跳过/降级静默/批量上限+最老优先/LLM 关闭空转）；pytest **136/136 全绿**；**坑点**：测试环境 LLM\_ENABLED 恒 false，mock 用例须显式 setattr(settings, LLM\_ENABLED, True) 且 disabled 用例勿用会打开开关的 \_mock\_invoke 辅助 | \[待补充] |
+| 2026-09-03 | **V1.6.0 主题装扮上线**：GET/PUT /account/theme（GET ?user_id= 公开可读/缺省读本人（optional_user 降级匿名）；PUT 整替语义，空串/null 清除单项、全空恢复默认（theme_config 置 NULL）；ThemeIn 校验 #RRGGBB 颜色与 /uploads/ 本站路径（外站 URL/非法色 40001），theme_config 列 S1 已预留零迁移）；前端 stores/theme.ts（apply 写 :root CSS 变量 --cx-theme-bg/bg-image/primary，fetchAndApply 登录拉取静默降级，save 保存即全局生效）+ MainLayout 登录应用/退出恢复 + ProfileView 装扮对话框（主题色/背景色 color-picker + 背景图 /uploads/image 上传预览移除 + 恢复默认）；style.css body 绘制背景图（cover+fixed）+ Element Plus 主色映射 --el-color-primary 系 color-mix 派生；test_account.py 占位测试替换为 3 用例（默认读/整替+公开读/校验与 401）；pytest **138/138 全绿** + vue-tsc build 零错误；**P-002 第 10 次回滚**（Edit 锚点失败信号→Read 复核确认→git checkout HEAD 恢复后继续） | [待补充] |

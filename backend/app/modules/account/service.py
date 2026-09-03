@@ -253,3 +253,26 @@ def reset_password(db: Session, phone: str, code: str, new_password: str) -> Non
         raise BizError(ErrCode.BAD_REQUEST, "该手机号未注册")
     user.password_hash = hash_password(new_password)
     db.commit()
+
+
+# ---- 主题装扮（V1.6）：theme_config 读写 ----
+
+
+def get_theme(db: Session, user_id: int) -> dict | None:
+    """读用户装扮配置（公开）：用户不存在 40002；未设置返回 None。"""
+    user = db.get(User, user_id)
+    if user is None or user.deleted_at is not None:
+        raise BizError(ErrCode.NOT_FOUND, "用户不存在")
+    return user.theme_config or None
+
+
+def update_theme(db: Session, user: User, bg_color: str | None, bg_image: str | None, theme_color: str | None) -> dict:
+    """写本人装扮：整替语义，空串/null 项清除；全空 = 恢复默认（置 NULL）。"""
+    config = {
+        k: v
+        for k, v in {"bg_color": bg_color, "bg_image": bg_image, "theme_color": theme_color}.items()
+        if v  # 空串与 None 都清除
+    }
+    user.theme_config = config or None  # 全空恢复默认
+    db.commit()
+    return user.theme_config or {}
