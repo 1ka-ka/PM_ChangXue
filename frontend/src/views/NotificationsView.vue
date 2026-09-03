@@ -123,8 +123,6 @@ watch(page, fetchList)
 
 <style scoped>
 .notify {
-  max-width: 720px;
-  margin: 0 auto;
   padding: 20px 24px 24px;
 }
 

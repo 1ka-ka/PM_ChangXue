@@ -186,13 +186,12 @@ function onCommand(cmd: string) {
 }
 
 .topbar-inner {
-  max-width: 1000px;
-  margin: 0 auto;
+  width: 100%;
   display: flex;
   align-items: center;
   gap: 20px;
   height: 56px;
-  padding: 0 16px;
+  padding: 0 28px;
 }
 
 .logo {
@@ -212,13 +211,12 @@ function onCommand(cmd: string) {
 }
 
 .subnav-inner {
-  max-width: 1000px;
-  margin: 0 auto;
+  width: 100%;
   display: flex;
   align-items: center;
   gap: 4px;
   height: 48px;
-  padding: 0 16px;
+  padding: 0 28px;
 }
 
 .subtab {
@@ -264,9 +262,7 @@ function onCommand(cmd: string) {
 }
 
 .content {
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 20px 16px 60px;
   width: 100%;
+  padding: 20px 28px 60px;
 }
 </style>

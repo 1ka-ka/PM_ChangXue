@@ -175,8 +175,6 @@ function changePage(p: number) {
 
 <style scoped>
 .search {
-  max-width: 720px;
-  margin: 0 auto;
   padding: 24px;
 }
 

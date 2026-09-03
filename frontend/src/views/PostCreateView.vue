@@ -301,8 +301,6 @@ watch([() => form.title, () => form.tag_ids], () => {
 
 <style scoped>
 .create {
-  max-width: 720px;
-  margin: 0 auto;
   padding: 24px;
 }
 
