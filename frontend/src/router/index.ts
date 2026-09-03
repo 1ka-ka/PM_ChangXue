@@ -19,7 +19,16 @@ const router = createRouter({
       component: () => import('@/layouts/MainLayout.vue'),
       children: [
         { path: '', redirect: '/feed' },
-        { path: 'feed', name: 'feed', component: () => import('@/views/FeedView.vue') },
+        {
+          // 主页面（V1.10）：子页由顶部按钮栏激活，默认广场
+          path: '',
+          component: () => import('@/views/HomeView.vue'),
+          children: [
+            { path: 'feed', name: 'feed', component: () => import('@/views/FeedView.vue') },
+            { path: 'ranks', name: 'ranks', component: () => import('@/views/RankView.vue') },
+            { path: 'mall', name: 'mall', component: () => import('@/views/MallView.vue') },
+          ],
+        },
         { path: 'search', name: 'search', component: () => import('@/views/SearchView.vue') },
         {
           path: 'posts/create',
@@ -44,8 +53,6 @@ const router = createRouter({
           component: () => import('@/views/MessagesView.vue'),
           meta: { requiresAuth: true },
         },
-        { path: 'ranks', name: 'ranks', component: () => import('@/views/RankView.vue') },
-        { path: 'mall', name: 'mall', component: () => import('@/views/MallView.vue') },
         {
           path: 'u/:id',
           name: 'profile',

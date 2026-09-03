@@ -88,6 +88,7 @@ class UserFull(BaseModel):
     gratitude: Gratitude
     credit_balance: int
     is_self: bool = True
+    is_admin: bool = False  # role=1；前端据此区分登录后行为（管理员菜单/默认落地页）
 
 
 class TokenOut(BaseModel):

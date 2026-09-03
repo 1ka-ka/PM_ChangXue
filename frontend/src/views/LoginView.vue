@@ -98,7 +98,9 @@ async function submit() {
       form.password = ''
       return
     }
-    const redirect = (route.query.redirect as string) || '/feed'
+    // 登录页统一，但登录后区分身份：管理员默认进管理后台，普通用户进广场
+    const redirect =
+      (route.query.redirect as string) || (auth.user?.is_admin ? '/admin' : '/feed')
     router.replace(redirect)
   } catch (e) {
     ElMessage.error(e instanceof ApiError ? e.message : '操作失败')

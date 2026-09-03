@@ -96,6 +96,7 @@ def full_info(db: Session, user: User) -> dict:
         gratitude=_gratitude_of(db, user.id),
         credit_balance=account.balance if account else 0,
         is_self=True,
+        is_admin=user.role == 1,
     ).model_dump()
 
 

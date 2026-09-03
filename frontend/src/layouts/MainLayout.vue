@@ -77,12 +77,6 @@ function onCommand(cmd: string) {
       <div class="topbar-inner">
         <router-link to="/feed" class="logo">畅学</router-link>
 
-        <nav class="nav">
-          <router-link to="/feed">广场</router-link>
-          <router-link to="/ranks">助人榜</router-link>
-          <router-link to="/mall">商城</router-link>
-        </nav>
-
         <div class="search-box">
           <el-input
             v-model="keyword"
@@ -122,6 +116,9 @@ function onCommand(cmd: string) {
                 <el-dropdown-menu>
                   <el-dropdown-item command="profile">
                     {{ auth.user?.nickname }}（{{ auth.user?.credit_balance }} 积分）
+                    <el-tag v-if="auth.user?.is_admin" size="small" type="danger" class="admin-tag">
+                      管理员
+                    </el-tag>
                   </el-dropdown-item>
                   <el-dropdown-item command="notifications" divided>
                     通知中心
@@ -180,23 +177,6 @@ function onCommand(cmd: string) {
   letter-spacing: 2px;
 }
 
-.nav {
-  display: flex;
-  gap: 16px;
-}
-
-.nav a {
-  color: #555;
-  text-decoration: none;
-  font-size: 15px;
-  padding: 4px 2px;
-}
-
-.nav a.router-link-active {
-  color: var(--el-color-primary);
-  font-weight: 600;
-}
-
 .search-box {
   flex: 1;
   max-width: 360px;
@@ -212,6 +192,10 @@ function onCommand(cmd: string) {
 .avatar {
   cursor: pointer;
   background: var(--el-color-primary-light-5);
+}
+
+.admin-tag {
+  margin-left: 6px;
 }
 
 .content {

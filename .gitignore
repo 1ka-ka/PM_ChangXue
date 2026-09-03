@@ -9,10 +9,12 @@ venv/
 
 # 数据库与上传
 *.db
+*.db.bak
 *.sqlite3
 backend/uploads/
 !backend/uploads/.gitkeep
 backend/uploads_test/
+uploads_test/
 
 # Node
 node_modules/
