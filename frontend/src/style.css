@@ -148,3 +148,24 @@ a {
   --cx-theme-bg: #fdf3e7;
   --cx-theme-primary: #e8853d;
 }
+
+/* ---- V1.17 个性化装扮：宠物（pet 槽位 payload = emoji）----
+   个人主页右下角挂件，访问主页的所有人可见；浮动+摇摆动画。 */
+.pet-widget {
+  display: inline-block;
+  font-size: 40px;
+  line-height: 1;
+  user-select: none;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.15));
+  animation: cx-pet-float 2.6s ease-in-out infinite;
+}
+
+@keyframes cx-pet-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-4deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(4deg);
+  }
+}

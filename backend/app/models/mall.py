@@ -18,7 +18,7 @@ CATEGORY_BUBBLE = 4  # 气泡：聊天气泡样式，payload=样式 key
 CATEGORY_EFFECT = 5  # 特效：昵称特效，payload=样式 key（glow/shine/flame）
 CATEGORY_FONT = 6  # 字体：payload=样式 key（V1.16 启用）
 CATEGORY_SKIN = 7  # 皮肤：页面主题包，payload=样式 key（V1.16 启用）
-CATEGORY_PET = 8  # 宠物：主页挂件，payload=样式 key（V1.17 启用）
+CATEGORY_PET = 8  # 宠物：主页挂件，payload=emoji（V1.17 启用）
 
 # 佩戴槽位 → 商城品类（V1.15）：槽位名即个性化模块的通用键，新增品类在此追加即可。
 SLOT_CATEGORY = {

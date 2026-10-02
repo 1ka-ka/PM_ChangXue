@@ -243,6 +243,7 @@ const SLOT_NAMES: Record<string, string> = {
   effect: '特效',
   font: '字体',
   skin: '皮肤',
+  pet: '宠物',
 }
 
 interface ItemRow {
@@ -358,6 +359,7 @@ const decorEmpty = computed(
             <template v-for="(slot, key) in SLOT_NAMES" :key="key">
               <span v-if="info.equipped?.[key]" class="chip" :title="info.equipped[key]!.name">
                 <i v-if="key === 'badge'" class="chip-emoji">{{ info.equipped[key]!.payload }}</i>
+                <i v-else-if="key === 'pet'" class="chip-emoji">{{ info.equipped[key]!.payload }}</i>
                 <i v-else-if="key === 'title'" class="chip-title">{{ info.equipped[key]!.payload || info.equipped[key]!.name }}</i>
                 <template v-else>{{ slot }}</template>
               </span>
@@ -386,6 +388,10 @@ const decorEmpty = computed(
             <span>积分余额</span>
           </div>
         </div>
+      </div>
+      <!-- V1.17 宠物挂件：主页右下角，所有访问者可见 -->
+      <div v-if="info?.equipped?.pet" class="pet-corner" :title="info.equipped.pet.name">
+        <span class="pet-widget">{{ info.equipped.pet.payload }}</span>
       </div>
     </div>
 
@@ -514,6 +520,9 @@ const decorEmpty = computed(
                 <div v-else-if="g.slot === 'skin'" class="payload payload-skin" :class="`skin-${row.payload}`">
                   主题预览
                 </div>
+                <div v-else-if="g.slot === 'pet'" class="payload">
+                  <span class="pet-widget">{{ row.payload }}</span>
+                </div>
                 <div v-else class="payload payload-effect" :class="`name-effect-${row.payload}`">昵称</div>
                 <div class="item-name" :title="row.name">{{ row.name }}</div>
                 <el-button
@@ -539,8 +548,17 @@ const decorEmpty = computed(
 
 <style scoped>
 .head-card {
+  position: relative;
   padding: 24px;
   margin-bottom: 16px;
+}
+
+/* V1.17 宠物挂件：主页信息卡右下角 */
+.pet-corner {
+  position: absolute;
+  right: 20px;
+  bottom: 8px;
+  pointer-events: none;
 }
 
 .head {

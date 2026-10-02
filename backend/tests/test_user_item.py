@@ -207,6 +207,22 @@ def test_equip_font_and_skin_slots(client):
     assert r.json()["code"] == 40001
 
 
+def test_equip_pet_slot(client):
+    """V1.17 宠物槽位：category 8 商品可佩戴，公开主页带宠物挂件数据。"""
+    pid = _make_product(name="橘猫", category=8, payload="🐱")
+    h, uid = _register(client)
+    _top_up(uid, 100)
+    client.post("/api/mall/exchange", json={"product_id": pid}, headers=h)
+
+    r = client.put("/api/account/equip", json={"equips": {"pet": pid}}, headers=h)
+    equipped = r.json()["data"]["equipped"]
+    assert equipped["pet"]["payload"] == "🐱"
+
+    # 公开主页（他人视角）携带宠物挂件
+    r = client.get(f"/api/account/users/{uid}")
+    assert r.json()["data"]["equipped"]["pet"]["payload"] == "🐱"
+
+
 def test_gratitude_rank_current_period_realtime(client):
     """感谢值周榜当期实时：本周 gratitude_stat 直查即出，不再回落上期。"""
     h, uid = _register(client, "感谢值大户")

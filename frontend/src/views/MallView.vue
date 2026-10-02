@@ -187,7 +187,7 @@ onMounted(() => {
                   <div class="thumb">
                     <img v-if="p.image_url" :src="p.image_url" :alt="p.name" />
                     <span
-                      v-else-if="p.category === 2 && p.payload"
+                      v-else-if="(p.category === 2 || p.category === 8) && p.payload"
                       class="thumb-emoji"
                     >{{ p.payload }}</span>
                     <span v-else-if="p.category === 1 && p.payload" class="thumb-title">{{ p.payload }}</span>
