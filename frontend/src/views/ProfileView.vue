@@ -241,6 +241,8 @@ const SLOT_NAMES: Record<string, string> = {
   frame: '头像框',
   bubble: '气泡',
   effect: '特效',
+  font: '字体',
+  skin: '皮肤',
 }
 
 interface ItemRow {
@@ -505,6 +507,12 @@ const decorEmpty = computed(
                 />
                 <div v-else-if="g.slot === 'bubble'" class="payload payload-bubble" :class="`bubble-${row.payload}`">
                   消息预览
+                </div>
+                <div v-else-if="g.slot === 'font'" class="payload" :class="`user-font-${row.payload}`">
+                  字体预览 Aa
+                </div>
+                <div v-else-if="g.slot === 'skin'" class="payload payload-skin" :class="`skin-${row.payload}`">
+                  主题预览
                 </div>
                 <div v-else class="payload payload-effect" :class="`name-effect-${row.payload}`">昵称</div>
                 <div class="item-name" :title="row.name">{{ row.name }}</div>
@@ -799,6 +807,17 @@ const decorEmpty = computed(
   font-size: 16px;
   font-weight: 700;
   color: #333;
+}
+
+/* V1.16 皮肤预览：皮肤 class 提供主题变量，色块直观展示 */
+.payload-skin {
+  padding: 4px 12px;
+  border-radius: 10px;
+  background: var(--cx-theme-bg);
+  color: var(--cx-theme-primary);
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--cx-theme-primary);
 }
 
 .item-name {

@@ -112,3 +112,39 @@ a {
 .bubble-neo {
   background: linear-gradient(135deg, #a3e4ff, #b8a5ff) !important;
 }
+
+/* ---- V1.16 个性化装扮：字体（font 槽位 payload = 样式 key）----
+   作用于作者本人的帖子正文/回答/私信正文，其他人可见。 */
+.user-font-kai {
+  font-family: 'KaiTi', 'STKaiti', 'DFKai-SB', serif;
+}
+
+.user-font-fang {
+  font-family: 'FangSong', 'STFangsong', 'FangSong_GB2312', serif;
+}
+
+.user-font-hei {
+  font-family: 'SimHei', 'Heiti SC', 'Microsoft YaHei', sans-serif;
+}
+
+.user-font-song {
+  font-family: 'SimSun', 'Songti SC', 'NSimSun', serif;
+}
+
+/* ---- V1.16 个性化装扮：皮肤（skin 槽位 payload = 样式 key）----
+   页面主题包：覆盖主题 CSS 变量，仅佩戴者本人可见；
+   与「主题装扮」自定义叠加时，自定义项（内联变量）优先。 */
+.skin-sakura {
+  --cx-theme-bg: #fff0f5;
+  --cx-theme-primary: #ef7ba7;
+}
+
+.skin-mint {
+  --cx-theme-bg: #eefaf3;
+  --cx-theme-primary: #34c77b;
+}
+
+.skin-sunset {
+  --cx-theme-bg: #fdf3e7;
+  --cx-theme-primary: #e8853d;
+}

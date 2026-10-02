@@ -29,6 +29,13 @@ export const useAuthStore = defineStore('auth', {
       this.token = token
       localStorage.setItem(TOKEN_KEY, token)
     },
+    /** V1.16 皮肤装扮：按本人佩戴切换 html 上的 skin-* class（仅本人生效） */
+    applySkin() {
+      const root = document.documentElement
+      root.classList.remove(...[...root.classList].filter((c) => c.startsWith('skin-')))
+      const key = this.user?.equipped?.skin?.payload
+      if (key) root.classList.add(`skin-${key}`)
+    },
     async fetchMe() {
       if (!this.token) return
       try {
@@ -36,6 +43,7 @@ export const useAuthStore = defineStore('auth', {
       } catch {
         this.user = null
       }
+      this.applySkin()
     },
     async fetchUnread() {
       if (!this.token) return
@@ -70,6 +78,7 @@ export const useAuthStore = defineStore('auth', {
       this.user = null
       this.unreadCount = 0
       localStorage.removeItem(TOKEN_KEY)
+      this.applySkin() // 清除皮肤 class
     },
   },
 })

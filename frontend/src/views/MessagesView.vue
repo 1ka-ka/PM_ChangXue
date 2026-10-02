@@ -134,6 +134,15 @@ function bubbleClass(m: MessageItem) {
   return key ? `bubble-${key}` : ''
 }
 
+// V1.16 字体装扮：消息正文按发送者佩戴的字体展示
+function fontClass(m: MessageItem) {
+  const mine = m.sender_id === auth.user?.id
+  const key = mine
+    ? auth.user?.equipped?.font?.payload
+    : peer.value?.equipped?.font?.payload
+  return key ? `user-font-${key}` : ''
+}
+
 onMounted(async () => {
   await fetchConversations()
   void messageStore.fetchUnread()
@@ -222,7 +231,7 @@ onUnmounted(() => {
             :class="{ mine: m.sender_id === auth.user?.id }"
           >
             <div class="bubble" :class="bubbleClass(m)">
-              <p class="text">{{ m.content }}</p>
+              <p class="text" :class="fontClass(m)">{{ m.content }}</p>
               <span class="time">{{ fmtTime(m.created_at) }}</span>
             </div>
           </div>

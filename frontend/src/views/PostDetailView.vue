@@ -199,7 +199,10 @@ function fmtTime(s: string) {
               <p class="ai-text">{{ post.ai_summary }}</p>
             </div>
 
-            <p class="content">{{ post.content }}</p>
+            <p
+              class="content"
+              :class="post.author_equipped?.font?.payload ? `user-font-${post.author_equipped.font.payload}` : ''"
+            >{{ post.content }}</p>
 
             <div v-if="post.images.length" class="images">
               <el-image
@@ -337,7 +340,10 @@ function fmtTime(s: string) {
                 </div>
               </div>
 
-              <p class="answer-content">{{ a.content }}</p>
+              <p
+                class="answer-content"
+                :class="a.author_equipped?.font?.payload ? `user-font-${a.author_equipped.font.payload}` : ''"
+              >{{ a.content }}</p>
 
               <!-- 回答操作栏（知乎式：赞同大按钮 + 分享 + 评论入口 + 采纳 + ···） -->
               <div class="answer-actions-bar">

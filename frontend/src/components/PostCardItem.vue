@@ -19,7 +19,10 @@ const router = useRouter()
         悬赏 {{ post.reward }}
       </el-tag>
     </div>
-    <p class="summary">
+    <p
+      class="summary"
+      :class="post.author_equipped?.font?.payload ? `user-font-${post.author_equipped.font.payload}` : ''"
+    >
       <span v-if="post.is_ai_summary" class="ai-badge">AI</span>{{ post.summary }}
     </p>
     <div class="meta">

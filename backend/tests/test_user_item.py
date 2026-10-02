@@ -178,6 +178,35 @@ def test_public_profile_shows_equipped(client):
     assert r.json()["data"]["equipped"]["title"]["payload"] == "热心大佬"
 
 
+def test_equip_font_and_skin_slots(client):
+    """V1.16 字体/皮肤槽位：category 6/7 商品可佩戴，equipped 快照带 payload 样式 key。"""
+    pid_font = _make_product(name="楷体", category=6, payload="kai")
+    pid_skin = _make_product(name="樱花皮肤", category=7, payload="sakura")
+    h, uid = _register(client)
+    _top_up(uid, 200)
+    client.post("/api/mall/exchange", json={"product_id": pid_font}, headers=h)
+    client.post("/api/mall/exchange", json={"product_id": pid_skin}, headers=h)
+
+    r = client.put(
+        "/api/account/equip",
+        json={"equips": {"font": pid_font, "skin": pid_skin}},
+        headers=h,
+    )
+    equipped = r.json()["data"]["equipped"]
+    assert equipped["font"]["payload"] == "kai"
+    assert equipped["skin"]["payload"] == "sakura"
+
+    # 背包槽位归类正确
+    r = client.get("/api/account/items", headers=h)
+    by_slot = {i["slot"]: i for i in r.json()["data"]["items"]}
+    assert by_slot["font"]["equipped"] is True
+    assert by_slot["skin"]["equipped"] is True
+
+    # 品类不匹配：拿字体商品当头衔戴 → 40001
+    r = client.put("/api/account/equip", json={"equips": {"title": pid_font}}, headers=h)
+    assert r.json()["code"] == 40001
+
+
 def test_gratitude_rank_current_period_realtime(client):
     """感谢值周榜当期实时：本周 gratitude_stat 直查即出，不再回落上期。"""
     h, uid = _register(client, "感谢值大户")
