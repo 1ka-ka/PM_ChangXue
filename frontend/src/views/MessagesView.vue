@@ -9,11 +9,13 @@ import { useRoute, useRouter } from 'vue-router'
 import { get, post } from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
 import { useMessageStore } from '@/stores/message'
+import UserDecor from '@/components/UserDecor.vue'
 
 interface Peer {
   id: number
   nickname: string
   avatar: string | null
+  equipped?: Record<string, { product_id: number; name: string; payload: string }> | null
 }
 
 interface ConversationItem {
@@ -123,6 +125,15 @@ function fmtTime(s: string) {
   return new Date(s).toLocaleString('zh-CN', { hour12: false })
 }
 
+// V1.15 气泡装扮：消息双方各自的佩戴（我方取 auth，对方取会话 peer）
+function bubbleClass(m: MessageItem) {
+  const mine = m.sender_id === auth.user?.id
+  const key = mine
+    ? auth.user?.equipped?.bubble?.payload
+    : peer.value?.equipped?.bubble?.payload
+  return key ? `bubble-${key}` : ''
+}
+
 onMounted(async () => {
   await fetchConversations()
   void messageStore.fetchUnread()
@@ -171,7 +182,10 @@ onUnmounted(() => {
           </el-avatar>
         </el-badge>
         <div class="conv-info">
-          <div class="conv-name">{{ c.peer?.nickname || '未知用户' }}</div>
+          <div class="conv-name">
+            {{ c.peer?.nickname || '未知用户' }}
+            <UserDecor :equipped="c.peer?.equipped" />
+          </div>
           <div class="conv-last">{{ c.last_content || '' }}</div>
         </div>
       </div>
@@ -186,7 +200,10 @@ onUnmounted(() => {
     <section class="chat">
       <template v-if="activeId != null || newTo != null">
         <header class="chat-head">
-          <span>{{ newTo ? newToName : peer?.nickname || '对话' }}</span>
+          <span>
+            {{ newTo ? newToName : peer?.nickname || '对话' }}
+            <UserDecor v-if="!newTo" :equipped="peer?.equipped" />
+          </span>
           <el-button
             v-if="peer"
             text
@@ -204,7 +221,7 @@ onUnmounted(() => {
             class="msg-row"
             :class="{ mine: m.sender_id === auth.user?.id }"
           >
-            <div class="bubble">
+            <div class="bubble" :class="bubbleClass(m)">
               <p class="text">{{ m.content }}</p>
               <span class="time">{{ fmtTime(m.created_at) }}</span>
             </div>
@@ -330,6 +347,11 @@ onUnmounted(() => {
 .msg-row.mine .bubble {
   background: var(--cx-theme-primary);
   color: #fff;
+}
+
+/* V1.15 气泡装扮：我方气泡被浅色渐变装扮覆盖时，文字改深色保证可读 */
+.msg-row.mine .bubble[class*='bubble-'] {
+  color: #333;
 }
 
 .bubble .text {

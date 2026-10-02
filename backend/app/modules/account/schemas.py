@@ -70,6 +70,7 @@ class UserBrief(BaseModel):
     avatar: str | None = None
     school: str = ""
     major: str = ""
+    equipped: dict | None = None  # V1.15 佩戴快照（头衔/徽章/头像框等渲染数据）
 
 
 class Gratitude(BaseModel):
@@ -89,6 +90,7 @@ class UserFull(BaseModel):
     credit_balance: int
     is_self: bool = True
     is_admin: bool = False  # role=1；前端据此区分登录后行为（管理员菜单/默认落地页）
+    equipped: dict | None = None  # V1.15 佩戴快照
 
 
 class TokenOut(BaseModel):

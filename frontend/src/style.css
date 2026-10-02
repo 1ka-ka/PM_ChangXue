@@ -52,3 +52,63 @@ a {
   color: #999;
   padding: 48px 0;
 }
+
+/* ---- V1.15 个性化装扮：昵称特效（effect 槽位 payload = 样式 key）---- */
+.name-effect-glow {
+  text-shadow: 0 0 6px rgba(126, 211, 247, 0.9), 0 0 12px rgba(126, 211, 247, 0.5);
+}
+
+.name-effect-shine {
+  background: linear-gradient(120deg, #7f7fd9, #91eae4, #ffffff, #7f7fd9);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: cx-shine 2.5s linear infinite;
+}
+
+@keyframes cx-shine {
+  to {
+    background-position: 200% center;
+  }
+}
+
+.name-effect-flame {
+  color: #d35400;
+  text-shadow:
+    0 0 4px #e67e22,
+    0 0 8px #f39c12,
+    0 -2px 6px rgba(255, 99, 71, 0.6);
+  animation: cx-flame 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes cx-flame {
+  from {
+    text-shadow:
+      0 0 3px #e67e22,
+      0 0 6px #f39c12;
+  }
+  to {
+    text-shadow:
+      0 0 6px #e67e22,
+      0 0 14px #f39c12,
+      0 0 20px rgba(255, 99, 71, 0.8);
+  }
+}
+
+/* ---- V1.15 个性化装扮：聊天气泡（bubble 槽位 payload = 样式 key）---- */
+.bubble-mint {
+  background: linear-gradient(135deg, #d5f5e3, #a9dfbf) !important;
+}
+
+.bubble-peach {
+  background: linear-gradient(135deg, #fdebd0, #fad7a0) !important;
+}
+
+.bubble-star {
+  background: linear-gradient(135deg, #e8daef, #d2b4de) !important;
+}
+
+.bubble-neo {
+  background: linear-gradient(135deg, #a3e4ff, #b8a5ff) !important;
+}

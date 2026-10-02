@@ -8,6 +8,8 @@ import { ApiError, get, post as httpPost } from '@/api/http'
 import type { PostCard, PostDetail } from '@/api/types'
 import { useAuthStore } from '@/stores/auth'
 import CommentThread from '@/components/CommentThread.vue'
+import DecorAvatar from '@/components/DecorAvatar.vue'
+import UserDecor from '@/components/UserDecor.vue'
 import ReportDialog from '@/components/ReportDialog.vue'
 
 const route = useRoute()
@@ -299,14 +301,22 @@ function fmtTime(s: string) {
 
             <div v-for="a in sortedAnswers" :key="a.id" class="answer">
               <div class="answer-head">
-                <el-avatar :size="38" class="avatar" @click="router.push(`/u/${a.author_id}`)">
-                  {{ a.author_nickname.slice(0, 1) }}
-                </el-avatar>
+                <DecorAvatar
+                  :size="38"
+                  :name="a.author_nickname"
+                  :equipped="a.author_equipped"
+                  @click="router.push(`/u/${a.author_id}`)"
+                />
                 <div class="who">
                   <div class="who-line">
-                    <span class="author" @click="router.push(`/u/${a.author_id}`)">
+                    <span
+                      class="author"
+                      :class="a.author_equipped?.effect?.payload ? `name-effect-${a.author_equipped.effect.payload}` : ''"
+                      @click="router.push(`/u/${a.author_id}`)"
+                    >
                       {{ a.author_nickname }}
                     </span>
+                    <UserDecor :equipped="a.author_equipped" />
                     <el-tag v-if="a.is_best" type="success" effect="dark" size="small">最佳</el-tag>
                     <el-tag v-else-if="a.is_accepted" type="success" effect="plain" size="small">已采纳</el-tag>
                     <!-- AI 可靠性徽标（V1.3）：异步生成，仅供参考 -->
@@ -421,6 +431,7 @@ function fmtTime(s: string) {
                 <span class="k">提问者</span>
                 <span class="v link" @click="router.push(`/u/${post.author_id}`)">
                   {{ post.author_nickname }}
+                  <UserDecor :equipped="post.author_equipped" />
                 </span>
               </div>
             </div>

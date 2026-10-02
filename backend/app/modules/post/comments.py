@@ -34,6 +34,7 @@ def _comment_dict(db: Session, c: Comment) -> dict:
         "target_id": c.target_id,
         "author_id": c.author_id,
         "author_nickname": author.nickname if author else "已注销",
+        "author_equipped": author.equipped if author else None,  # V1.15 佩戴（头衔/徽章/特效）
         "parent_id": c.parent_id,
         "reply_to_user_id": c.reply_to_user_id,
         "reply_to_nickname": reply_to.nickname if reply_to else None,

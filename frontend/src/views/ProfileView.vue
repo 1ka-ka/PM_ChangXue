@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /**
  * V1.12 个人主页（/u/:id）：基本信息 + 统计（提问/回答/获赞/感谢值）+ 公开内容（TA 的提问/回答）。
+ * V1.15 个性化装扮：头像框/头衔/特效/佩戴展示 + 本人「个性装扮」管理（背包佩戴/卸下）。
  * 本人个性化管理（收藏/评论/点赞/积分等）已移至个人中心 /me。
  */
 import { computed, onMounted, ref, watch } from 'vue'
@@ -9,6 +10,8 @@ import { ElMessage } from 'element-plus'
 import { get, put } from '@/api/http'
 import type { MyAnswerItem, Page, PostCard } from '@/api/types'
 import PostCardItem from '@/components/PostCardItem.vue'
+import DecorAvatar from '@/components/DecorAvatar.vue'
+import UserDecor from '@/components/UserDecor.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore, type ThemeConfig } from '@/stores/theme'
 
@@ -18,6 +21,14 @@ interface Gratitude {
   total: number
 }
 
+interface EquipSlot {
+  product_id: number
+  name: string
+  payload: string
+}
+
+type Equipped = Record<string, EquipSlot | undefined>
+
 interface ProfileInfo {
   id: number
   nickname: string
@@ -26,6 +37,7 @@ interface ProfileInfo {
   major: string
   gratitude: Gratitude
   is_self: boolean
+  equipped?: Equipped | null
   phone?: string
   credit_balance?: number
   created_at?: string
@@ -220,6 +232,85 @@ async function resetTheme() {
 function fmtTime(s: string | null) {
   return s ? new Date(s).toLocaleString('zh-CN', { hour12: false }) : ''
 }
+
+// ---- V1.15 个性装扮：背包佩戴/卸下/搭配 ----
+
+const SLOT_NAMES: Record<string, string> = {
+  title: '头衔',
+  badge: '徽章',
+  frame: '头像框',
+  bubble: '气泡',
+  effect: '特效',
+}
+
+interface ItemRow {
+  id: number
+  product_id: number
+  name: string
+  category: number
+  payload: string
+  slot: string | null
+  created_at: string
+  equipped: boolean
+}
+
+const decorVisible = ref(false)
+const items = ref<ItemRow[]>([])
+const itemsLoading = ref(false)
+
+// 昵称特效 class（如 name-effect-glow）
+const effectClass = computed(() => {
+  const p = info.value?.equipped?.effect?.payload
+  return p ? `name-effect-${p}` : ''
+})
+
+function openDecor() {
+  decorVisible.value = true
+  fetchItems()
+}
+
+async function fetchItems() {
+  itemsLoading.value = true
+  try {
+    const r = await get<{ items: ItemRow[] }>('/account/items')
+    items.value = r.items
+  } catch {
+    // 拦截器已提示
+  } finally {
+    itemsLoading.value = false
+  }
+}
+
+/** 佩戴/卸下切换：equipped → 卸下（null）；未佩戴 → 佩戴 */
+async function toggleEquip(row: ItemRow) {
+  if (!row.slot) return
+  try {
+    await put('/account/equip', {
+      equips: { [row.slot]: row.equipped ? null : row.product_id },
+    })
+    ElMessage.success(row.equipped ? '已卸下' : '已佩戴')
+    await fetchItems()
+    await fetchInfo()
+    await auth.fetchMe()
+  } catch {
+    // 拦截器已提示
+  }
+}
+
+// 背包按槽位分组（保持 SLOT_NAMES 顺序）
+const itemsBySlot = computed(() => {
+  const groups: { slot: string; label: string; rows: ItemRow[] }[] = []
+  for (const [slot, label] of Object.entries(SLOT_NAMES)) {
+    const rows = items.value.filter((i) => i.slot === slot)
+    if (rows.length) groups.push({ slot, label, rows })
+  }
+  return groups
+})
+
+// 未上架槽位背包为空时的空态文案
+const decorEmpty = computed(
+  () => !itemsLoading.value && !items.value.length && '背包空空如也，去商城逛逛吧',
+)
 </script>
 
 <template>
@@ -228,9 +319,7 @@ function fmtTime(s: string | null) {
     <div class="cx-card head-card">
       <div class="head">
         <div class="avatar-wrap" :class="{ self: isSelf }">
-          <el-avatar :size="72" :src="info?.avatar || undefined" class="avatar">
-            {{ info?.nickname?.slice(0, 1) }}
-          </el-avatar>
+          <DecorAvatar :size="72" :src="info?.avatar" :name="info?.nickname" :equipped="info?.equipped" />
           <label v-if="isSelf" class="avatar-edit" title="更换头像">
             <el-icon><Camera /></el-icon>
             <input type="file" accept="image/jpeg,image/png,image/webp" hidden @change="uploadAvatar" />
@@ -238,10 +327,12 @@ function fmtTime(s: string | null) {
         </div>
         <div class="info">
           <div class="name-row">
-            <h2>{{ info?.nickname }}</h2>
+            <h2 :class="effectClass">{{ info?.nickname }}</h2>
+            <UserDecor :equipped="info?.equipped" />
             <template v-if="isSelf">
               <el-button size="small" round @click="openEdit">编辑资料</el-button>
               <el-button size="small" round @click="openTheme">装扮</el-button>
+              <el-button size="small" round type="primary" @click="openDecor">个性装扮</el-button>
             </template>
             <el-button
               v-else-if="auth.isLogged"
@@ -260,6 +351,16 @@ function fmtTime(s: string | null) {
             <span class="muted">{{ joinDays() }}</span>
             <span v-if="isSelf && info?.phone" class="muted">{{ info.phone }}</span>
           </p>
+          <!-- V1.15 佩戴展示：头衔/徽章/头像框/气泡/特效 -->
+          <div v-if="info?.equipped && Object.keys(info.equipped).length" class="equipped-chips">
+            <template v-for="(slot, key) in SLOT_NAMES" :key="key">
+              <span v-if="info.equipped?.[key]" class="chip" :title="info.equipped[key]!.name">
+                <i v-if="key === 'badge'" class="chip-emoji">{{ info.equipped[key]!.payload }}</i>
+                <i v-else-if="key === 'title'" class="chip-title">{{ info.equipped[key]!.payload || info.equipped[key]!.name }}</i>
+                <template v-else>{{ slot }}</template>
+              </span>
+            </template>
+          </div>
         </div>
         <div class="stats">
           <div class="stat">
@@ -375,6 +476,54 @@ function fmtTime(s: string | null) {
         <el-button @click="themeVisible = false">取消</el-button>
         <el-button :loading="themeSaving" @click="resetTheme">恢复默认</el-button>
         <el-button type="primary" :loading="themeSaving" @click="saveTheme">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- V1.15 个性装扮（本人）：背包按槽位分区，佩戴/卸下即时生效 -->
+    <el-dialog v-model="decorVisible" title="个性装扮" width="560px">
+      <div v-loading="itemsLoading" class="decor-body">
+        <template v-if="itemsBySlot.length">
+          <div v-for="g in itemsBySlot" :key="g.slot" class="slot-group">
+            <h4>{{ g.label }}</h4>
+            <div class="item-grid">
+              <div
+                v-for="row in g.rows"
+                :key="row.id"
+                class="item-card"
+                :class="{ on: row.equipped }"
+              >
+                <!-- payload 预览：头衔=文本 / 徽章=emoji / 头像框=DecorAvatar / 气泡·特效=样式示例 -->
+                <div v-if="g.slot === 'title'" class="payload payload-title">
+                  {{ row.payload || row.name }}
+                </div>
+                <div v-else-if="g.slot === 'badge'" class="payload payload-badge">{{ row.payload }}</div>
+                <DecorAvatar
+                  v-else-if="g.slot === 'frame'"
+                  :size="44"
+                  name="框"
+                  :equipped="{ frame: { product_id: row.product_id, name: row.name, payload: row.payload } }"
+                />
+                <div v-else-if="g.slot === 'bubble'" class="payload payload-bubble" :class="`bubble-${row.payload}`">
+                  消息预览
+                </div>
+                <div v-else class="payload payload-effect" :class="`name-effect-${row.payload}`">昵称</div>
+                <div class="item-name" :title="row.name">{{ row.name }}</div>
+                <el-button
+                  size="small"
+                  :type="row.equipped ? 'info' : 'primary'"
+                  plain
+                  @click="toggleEquip(row)"
+                >
+                  {{ row.equipped ? '卸下' : '佩戴' }}
+                </el-button>
+              </div>
+            </div>
+          </div>
+        </template>
+        <el-empty v-else-if="decorEmpty" :description="decorEmpty" :image-size="70" />
+      </div>
+      <template #footer>
+        <el-button @click="decorVisible = false">完成</el-button>
       </template>
     </el-dialog>
   </div>
@@ -547,5 +696,117 @@ function fmtTime(s: string | null) {
   display: flex;
   justify-content: center;
   margin-top: 16px;
+}
+
+/* V1.15 佩戴展示 chips */
+.equipped-chips {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.equipped-chips .chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  border-radius: 4px;
+  background: #f4f0ff;
+  border: 1px solid #e3daff;
+  color: #8e6df0;
+  font-size: 12px;
+  line-height: 20px;
+  font-style: normal;
+}
+
+.equipped-chips .chip-emoji {
+  font-size: 14px;
+  font-style: normal;
+}
+
+.equipped-chips .chip-title {
+  font-weight: 600;
+  font-style: normal;
+}
+
+/* V1.15 个性装扮对话框 */
+.decor-body {
+  min-height: 120px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.slot-group h4 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  color: #333;
+}
+
+.slot-group + .slot-group {
+  margin-top: 18px;
+}
+
+.item-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.item-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 8px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 10px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.item-card.on {
+  border-color: var(--el-color-primary);
+  box-shadow: 0 0 0 1px var(--el-color-primary-light-7);
+}
+
+.item-card .payload {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.payload-title {
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #8e6df0, #b8a5ff);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.payload-badge {
+  font-size: 26px;
+}
+
+.payload-bubble {
+  padding: 4px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  color: #333;
+}
+
+.payload-effect {
+  font-size: 16px;
+  font-weight: 700;
+  color: #333;
+}
+
+.item-name {
+  font-size: 12px;
+  color: #666;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>

@@ -98,6 +98,77 @@ def stats(
     return ok(service.stats(db))
 
 
+# ---- 商城商品管理（V1.15 个性化：新增/编辑/上下架）----
+
+
+class ProductCreateIn(BaseModel):
+    name: str = Field(min_length=1, max_length=50)
+    description: str = Field(default="", max_length=200)
+    price: int = Field(gt=0)
+    stock: int = Field(default=-1, description="-1=不限量")
+    image_url: str | None = Field(default=None, max_length=255)
+    type: int = Field(default=1, ge=1, le=2, description="1虚拟 2实物")
+    category: int = Field(default=0, ge=0, le=8, description="0无分类 1头衔 2徽章 3头像框 4气泡 5特效 6字体 7皮肤 8宠物")
+    payload: str = Field(default="", max_length=100, description="展示载荷：文本/emoji/样式key")
+
+
+@router.post("/admin/mall/products")
+def create_product(
+    body: ProductCreateIn,
+    _: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """新增商品（个性化品类扩展入口：新槽位资源由此上架）。"""
+    return ok(
+        service.create_product(
+            db,
+            name=body.name,
+            description=body.description,
+            price=body.price,
+            stock=body.stock,
+            image_url=body.image_url,
+            type_=body.type,
+            category=body.category,
+            payload=body.payload,
+        )
+    )
+
+
+class ProductUpdateIn(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=50)
+    description: str | None = Field(default=None, max_length=200)
+    price: int | None = Field(default=None, gt=0)
+    stock: int | None = Field(default=None)
+    image_url: str | None = Field(default=None, max_length=255)
+    category: int | None = Field(default=None, ge=0, le=8)
+    payload: str | None = Field(default=None, max_length=100)
+    enabled: int | None = Field(default=None, ge=0, le=1, description="0=下架 1=上架")
+
+
+@router.put("/admin/mall/products/{product_id}")
+def update_product(
+    product_id: int,
+    body: ProductUpdateIn,
+    _: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """编辑/上下架商品：下架不影响已持有与佩戴，仅不可再兑换。"""
+    return ok(
+        service.update_product(
+            db,
+            product_id,
+            name=body.name,
+            description=body.description,
+            price=body.price,
+            stock=body.stock,
+            image_url=body.image_url,
+            category=body.category,
+            payload=body.payload,
+            enabled=body.enabled,
+        )
+    )
+
+
 # ---- 系统账号自动运营（V1.13）----
 
 

@@ -219,7 +219,7 @@ def _accept_for(client, asker_h, answerer_h, pid) -> None:
 
 
 def test_settle_snapshot_correctness(client):
-    """结算快照正确性：造跨周数据，上周结算入快照，本周不入。"""
+    """结算快照正确性（V1.15 语义）：settle 写 rank_snapshot 作历史存档；榜单 API 为当期实时。"""
     a, b, c = _user(client, "榜单甲"), _user(client, "榜单乙"), _user(client, "榜单丙")
     asker = _user(client, "榜单提问者")
     # 本周采纳：甲 3 次(90)、乙 2 次(60)——共享库中其他模块用户本周感谢值多为并列 30，
@@ -241,31 +241,30 @@ def test_settle_snapshot_correctness(client):
         db.merge(GratitudeStat(user_id=_uid(client, a), period_type=2, period_key=prev_month, value=90))
         db.commit()
 
-    # 结算上周（周榜）——共享库可能含其他模块同周期感谢值，断言只针对本用例用户的相对名次
+    # 结算上周 → rank_snapshot 历史存档（共享库可能含其他模块同周期数据，只断言本用例用户）
     with SessionLocal() as db:
         rank_service.settle(db, 1, prev_week)
-
-    r = client.get("/api/ranks?period=week").json()["data"]
-    # 当期（本周）未结算 → 回落上期 + settling
-    assert r["settling"] is True
-    assert r["period"] == prev_week
+        rows = db.execute(
+            select(RankSnapshot).where(
+                RankSnapshot.period_type == 1, RankSnapshot.period_key == prev_week
+            )
+        ).scalars().all()
     a_id, c_id = _uid(client, a), _uid(client, c)
-    by_uid = {i["user"]["id"]: i for i in r["items"]}
-    assert by_uid[a_id]["value"] == 90 and by_uid[a_id]["rank"] == 1  # 甲上周 90 居首
-    assert by_uid[c_id]["value"] == 30 and by_uid[c_id]["rank"] == 2  # 丙 30 次之
+    mine_a = [r for r in rows if r.user_id == a_id]
+    mine_c = [r for r in rows if r.user_id == c_id]
+    assert len(mine_a) == 1 and mine_a[0].value == 90 and mine_a[0].rank == 1  # 甲上周 90 居首
+    assert len(mine_c) == 1 and mine_c[0].value == 30 and mine_c[0].rank == 2  # 丙 30 次之
 
-    # 结算本周后：settling=false，甲 90 / 乙 60（其余共享数据用户不参与断言）
-    cur_week = rank_service.week_key(now)
-    with SessionLocal() as db:
-        rank_service.settle(db, 1, cur_week)
+    # 榜单 API（V1.15 起当期实时）：无需结算即出本周数据，settling 恒 False
     r = client.get("/api/ranks?period=week").json()["data"]
+    cur_week = rank_service.week_key(now)
     assert r["settling"] is False and r["period"] == cur_week
     values = {i["user"]["id"]: i["value"] for i in r["items"]}
     assert values.get(a_id) == 90 and values.get(_uid(client, b)) == 60
 
 
 def test_settle_idempotent_and_retry_fallback(client):
-    """结算幂等（重跑不重复）；失败重试 3 次后沿用上期（settling）。"""
+    """结算幂等（重跑不重复）；月榜当期实时：当期无快照也不回落上期。"""
     a = _user(client, "幂等甲")
     now = datetime.now()
     prev_week = rank_service.prev_keys(now)[1]
@@ -289,10 +288,7 @@ def test_settle_idempotent_and_retry_fallback(client):
     mine = [r for r in rows if r.user_id == uid_a]
     assert len(mine) == 1 and mine[0].value == 60
 
-    # 失败降级：当期无快照 + 上期有 → settling=true 沿用上期（已由上一用例覆盖语义，此处独立验证空榜）
+    # V1.15 语义：月榜当期实时，恒不回落上期、不 settling
     r = client.get("/api/ranks?period=month").json()["data"]
     cur_month = rank_service.month_key(now)
-    if r["period"] == cur_month:
-        assert r["items"] == []  # 当期已结算但无数据 → 空榜不 settling
-    else:
-        assert r["settling"] is True
+    assert r["settling"] is False and r["period"] == cur_month

@@ -19,7 +19,8 @@ class User(Base):
     avatar: Mapped[str | None] = mapped_column(String(255), default=None)
     school: Mapped[str] = mapped_column(String(50), default="")
     major: Mapped[str] = mapped_column(String(50), default="")
-    theme_config = mapped_column(JSON, nullable=True)  # P2 个性化装扮配置（P0 恒 NULL）
+    theme_config = mapped_column(JSON, nullable=True)  # 主题装扮配置（背景色/背景图/主题色，V1.6）
+    equipped = mapped_column(JSON, nullable=True)  # V1.15 佩戴快照 {slot: {product_id, name, payload}}
     role: Mapped[int] = mapped_column(SmallInteger, default=0)  # 0普通用户 1管理员
     is_op: Mapped[int] = mapped_column(SmallInteger, default=0)  # V1.13 系统运营账号（内部标记，API 不暴露，地位等同真人）
     status: Mapped[int] = mapped_column(SmallInteger, default=0)  # 0正常 1封禁

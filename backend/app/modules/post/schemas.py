@@ -33,6 +33,7 @@ class PostCard(BaseModel):
     summary: str  # content 截断 100 字
     author_id: int
     author_nickname: str
+    author_equipped: dict | None = None  # V1.15 佩戴快照（头衔/徽章/特效渲染）
     status: int  # 0待解决 1已解决
     reward: int
     answer_count: int

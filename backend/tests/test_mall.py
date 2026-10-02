@@ -146,8 +146,19 @@ def test_products_public_and_auth_required(client):
     pid = _make_product(name="公开商品")
     r = client.get("/api/mall/products")
     assert r.json()["code"] == 0
-    names = [i["name"] for i in r.json()["data"]["items"]]
-    assert "公开商品" in names
+    # 共享内存库含 seed 商品（V1.15 起 23 个）+ 本模块先前用例商品，翻页查找
+    found = False
+    page = 1
+    while True:
+        r = client.get(f"/api/mall/products?page={page}&page_size=50")
+        data = r.json()["data"]
+        if any(i["name"] == "公开商品" for i in data["items"]):
+            found = True
+            break
+        if page * 50 >= data["total"]:
+            break
+        page += 1
+    assert found, "新建商品应出现在售列表"
 
     assert client.post("/api/mall/exchange", json={"product_id": pid}).status_code == 401
     assert client.get("/api/mall/exchanges").status_code == 401

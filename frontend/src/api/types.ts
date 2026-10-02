@@ -1,5 +1,14 @@
 /** 核心业务类型（字段与后端 PostCard/PostDetail/Answer/Comment 对齐，技术细节文档 §4.2） */
 
+export interface EquipSlot {
+  product_id: number
+  name: string
+  payload: string
+}
+
+/** V1.15 佩戴快照：{slot: {product_id, name, payload}}，slot 见 SLOT_CATEGORY */
+export type Equipped = Record<string, EquipSlot | undefined>
+
 export interface TagItem {
   id: number
   name: string
@@ -11,6 +20,7 @@ export interface PostCard {
   summary: string
   author_id: number
   author_nickname: string
+  author_equipped?: Equipped | null // V1.15 佩戴快照（头衔/徽章/特效渲染）
   status: 0 | 1 // 0 待解决 1 已解决
   reward: number
   answer_count: number
@@ -40,6 +50,7 @@ export interface AnswerItem {
   post_id: number
   author_id: number
   author_nickname: string
+  author_equipped?: Equipped | null // V1.15 佩戴快照
   content: string
   is_accepted: boolean
   is_best: boolean
@@ -56,6 +67,7 @@ export interface CommentItem {
   target_id: number
   author_id: number
   author_nickname: string
+  author_equipped?: Equipped | null // V1.15 佩戴快照
   parent_id: number | null
   reply_to_user_id: number | null
   reply_to_nickname: string | null

@@ -20,6 +20,7 @@ from app.models import (
     AdminActionLog,
     Answer,
     Comment,
+    MallProduct,
     Post,
     Report,
     Tag,
@@ -272,6 +273,95 @@ def update_tag(db: Session, tag_id: int, name: str | None, sort: int | None, ena
         t.enabled = enabled
     db.commit()
     return {"id": t.id, "name": t.name, "sort": t.sort, "enabled": bool(t.enabled)}
+
+
+# ---- 商城商品管理（V1.15 个性化：新增/编辑/上下架，支撑品类持续扩展）----
+
+
+def create_product(
+    db: Session,
+    *,
+    name: str,
+    description: str,
+    price: int,
+    stock: int,
+    image_url: str | None,
+    type_: int,
+    category: int,
+    payload: str,
+) -> dict:
+    exists = db.execute(select(MallProduct.id).where(MallProduct.name == name)).scalar()
+    if exists:
+        raise BizError(ErrCode.BAD_REQUEST, "商品名已存在")
+    p = MallProduct(
+        name=name,
+        description=description,
+        price=price,
+        stock=stock,
+        image_url=image_url,
+        type=type_,
+        category=category,
+        payload=payload,
+        enabled=1,
+    )
+    db.add(p)
+    db.commit()
+    return _product_out(p)
+
+
+def update_product(
+    db: Session,
+    product_id: int,
+    *,
+    name: str | None,
+    description: str | None,
+    price: int | None,
+    stock: int | None,
+    image_url: str | None,
+    category: int | None,
+    payload: str | None,
+    enabled: int | None,
+) -> dict:
+    """编辑/上下架商品：enabled=0 即下架（下架不影响已持有与佩戴，仅不可再兑换）。"""
+    p = db.get(MallProduct, product_id)
+    if p is None:
+        raise BizError(ErrCode.NOT_FOUND, "商品不存在")
+    if name is not None:
+        dup = db.execute(select(MallProduct.id).where(MallProduct.name == name, MallProduct.id != product_id)).scalar()
+        if dup:
+            raise BizError(ErrCode.BAD_REQUEST, "商品名已存在")
+        p.name = name
+    if description is not None:
+        p.description = description
+    if price is not None:
+        p.price = price
+    if stock is not None:
+        p.stock = stock
+    if image_url is not None:
+        p.image_url = image_url
+    if category is not None:
+        p.category = category
+    if payload is not None:
+        p.payload = payload
+    if enabled is not None:
+        p.enabled = enabled
+    db.commit()
+    return _product_out(p)
+
+
+def _product_out(p: MallProduct) -> dict:
+    return {
+        "id": p.id,
+        "name": p.name,
+        "description": p.description,
+        "price": p.price,
+        "stock": p.stock,
+        "image_url": p.image_url,
+        "type": p.type,
+        "category": p.category,
+        "payload": p.payload,
+        "enabled": p.enabled,
+    }
 
 
 # ---- 操作日志（接口 37）----

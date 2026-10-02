@@ -11,7 +11,8 @@ from app.core.config import settings
 from app.core.exceptions import BizError, ErrCode
 from app.core.security import hash_password, mask_phone, verify_password
 from app.core.sensitive import contains_sensitive
-from app.models import CreditAccount, CreditLog, GratitudeStat, SmsCode, User
+from app.models import CreditAccount, CreditLog, GratitudeStat, MallProduct, SmsCode, User, UserItem
+from app.models.mall import SLOT_CATEGORY
 from app.modules.account.schemas import Gratitude, UserBrief, UserFull
 
 # 头像 magic bytes 白名单（技术细节文档 §7.4：不能只信扩展名）
@@ -23,7 +24,12 @@ _MAGIC = {
 
 def brief(u: User) -> dict:
     return UserBrief(
-        id=u.id, nickname=u.nickname, avatar=u.avatar, school=u.school, major=u.major
+        id=u.id,
+        nickname=u.nickname,
+        avatar=u.avatar,
+        school=u.school,
+        major=u.major,
+        equipped=u.equipped or None,
     ).model_dump()
 
 
@@ -84,7 +90,7 @@ def login(db: Session, phone: str, password: str) -> User:
 
 
 def full_info(db: Session, user: User) -> dict:
-    """UserFull（本人视角）：脱敏手机号 + 感谢值 + 积分余额。"""
+    """UserFull（本人视角）：脱敏手机号 + 感谢值 + 积分余额 + 佩戴装扮。"""
     account = db.get(CreditAccount, user.id)
     return UserFull(
         id=user.id,
@@ -97,6 +103,7 @@ def full_info(db: Session, user: User) -> dict:
         credit_balance=account.balance if account else 0,
         is_self=True,
         is_admin=user.role == 1,
+        equipped=user.equipped or None,
     ).model_dump()
 
 
@@ -261,6 +268,73 @@ def reset_password(db: Session, phone: str, code: str, new_password: str) -> Non
         raise BizError(ErrCode.BAD_REQUEST, "该手机号未注册")
     user.password_hash = hash_password(new_password)
     db.commit()
+
+
+# ---- 个性化装扮（V1.15）：背包 + 佩戴/卸下/搭配 ----
+
+
+def my_items(db: Session, user: User) -> dict:
+    """背包：持有的虚拟商品 + 当前佩戴状态（equipped 快照）。"""
+    rows = (
+        db.execute(
+            select(UserItem, MallProduct)
+            .join(MallProduct, MallProduct.id == UserItem.product_id)
+            .where(UserItem.user_id == user.id)
+            .order_by(UserItem.id.desc())
+        )
+        .all()
+    )
+    equipped = user.equipped or {}
+    slot_by_category = {c: s for s, c in SLOT_CATEGORY.items()}
+    items = [
+        {
+            "id": it.id,
+            "product_id": p.id,
+            "name": p.name,
+            "category": p.category,
+            "payload": p.payload,
+            "slot": slot_by_category.get(p.category),
+            "created_at": it.created_at,
+            "equipped": bool(
+                slot_by_category.get(p.category)
+                and equipped.get(slot_by_category[p.category], {}).get("product_id") == p.id
+            ),
+        }
+        for it, p in rows
+    ]
+    return {"equipped": equipped, "items": items}
+
+
+def equip(db: Session, user: User, equips: dict[str, int | None]) -> dict:
+    """批量搭配/卸下：{slot: product_id | null}，null=卸下该槽位。
+    校验：槽位合法（SLOT_CATEGORY）、本人持有（40918）、品类匹配槽位。
+    佩戴状态整替写入 user.equipped 快照（brief 直接读，列表接口零额外查询）。
+    """
+    if not equips:
+        raise BizError(ErrCode.BAD_REQUEST, "至少指定一个槽位")
+    data = dict(user.equipped or {})
+    for slot, product_id in equips.items():
+        if slot not in SLOT_CATEGORY:
+            raise BizError(ErrCode.BAD_REQUEST, f"未知装扮槽位：{slot}")
+        if product_id is None:
+            data.pop(slot, None)
+            continue
+        owned = (
+            db.execute(
+                select(UserItem.id).where(
+                    UserItem.user_id == user.id, UserItem.product_id == product_id
+                )
+            ).scalar()
+        )
+        if not owned:
+            raise BizError(ErrCode.ITEM_NOT_OWNED, "未持有该装扮，请先在商城兑换")
+        product = db.get(MallProduct, product_id)
+        if product is None or product.category != SLOT_CATEGORY[slot]:
+            raise BizError(ErrCode.BAD_REQUEST, "装扮品类与槽位不匹配")
+        data[slot] = {"product_id": product.id, "name": product.name, "payload": product.payload}
+    user.equipped = data or None
+    db.commit()
+    return {"equipped": user.equipped or {}}
 
 
 # ---- 主题装扮（V1.6）：theme_config 读写 ----

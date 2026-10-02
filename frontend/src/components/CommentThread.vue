@@ -6,6 +6,7 @@ import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import { get, post as httpPost } from '@/api/http'
 import type { CommentItem } from '@/api/types'
+import UserDecor from './UserDecor.vue'
 
 const props = defineProps<{
   targetType: 1 | 2 // 1 帖子 2 回答
@@ -119,6 +120,7 @@ function timeOf(c: CommentItem) {
       <div class="body">
         <div class="text-line">
           <span class="author">{{ c.author_nickname }}</span>
+          <UserDecor :equipped="c.author_equipped" />
           <span class="text">{{ c.content }}</span>
         </div>
         <div class="meta">
@@ -136,6 +138,7 @@ function timeOf(c: CommentItem) {
           <div v-for="r in c.replies" :key="r.id" class="reply">
             <div class="text-line">
               <span class="author">{{ r.author_nickname }}</span>
+              <UserDecor :equipped="r.author_equipped" />
               <span v-if="r.reply_to_nickname" class="reply-to">@{{ r.reply_to_nickname }}</span>
               <span class="text">{{ r.content }}</span>
             </div>

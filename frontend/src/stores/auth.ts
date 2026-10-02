@@ -12,6 +12,7 @@ export interface CurrentUser {
   bio: string | null
   credit_balance: number
   is_admin: boolean
+  equipped?: Record<string, { product_id: number; name: string; payload: string }> | null
 }
 
 export const useAuthStore = defineStore('auth', {

@@ -136,6 +136,7 @@ def _card(db: Session, post: Post, author: User | None = None) -> dict:
         summary=(post.ai_summary or (post.content or "")[:100])[:100],
         author_id=post.author_id,
         author_nickname=author.nickname if author else "已注销",
+        author_equipped=author.equipped if author else None,  # V1.15 佩戴（头衔/徽章/特效）
         status=post.status,
         reward=post.reward,
         answer_count=post.answer_count,

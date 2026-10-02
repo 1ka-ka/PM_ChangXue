@@ -221,6 +221,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/account/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My Items
+         * @description 我的背包：持有的个性化物品 + 当前佩戴状态。
+         */
+        get: operations["my_items_api_account_items_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/account/equip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Equip
+         * @description 佩戴/卸下/搭配装扮：校验持有与品类匹配，整替写 user.equipped 快照。
+         */
+        put: operations["equip_api_account_equip_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/credit/daily-login": {
         parameters: {
             query?: never;
@@ -908,6 +948,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/mall/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Product
+         * @description 新增商品（个性化品类扩展入口：新槽位资源由此上架）。
+         */
+        post: operations["create_product_api_admin_mall_products_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/mall/products/{product_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update Product
+         * @description 编辑/上下架商品：下架不影响已持有与佩戴，仅不可再兑换。
+         */
+        put: operations["update_product_api_admin_mall_products__product_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/operation/run": {
         parameters: {
             query?: never;
@@ -1169,6 +1249,16 @@ export interface components {
             /** Content */
             content: string;
         };
+        /**
+         * EquipIn
+         * @description 批量搭配：{slot: product_id | null}，null=卸下；一次可设置多个槽位。
+         */
+        EquipIn: {
+            /** Equips */
+            equips: {
+                [key: string]: number | null;
+            };
+        };
         /** EventIn */
         EventIn: {
             /** Name */
@@ -1230,6 +1320,66 @@ export interface components {
             images?: string[];
             /** Tag Ids */
             tag_ids: number[];
+        };
+        /** ProductCreateIn */
+        ProductCreateIn: {
+            /** Name */
+            name: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Price */
+            price: number;
+            /**
+             * Stock
+             * @description -1=不限量
+             * @default -1
+             */
+            stock: number;
+            /** Image Url */
+            image_url?: string | null;
+            /**
+             * Type
+             * @description 1虚拟 2实物
+             * @default 1
+             */
+            type: number;
+            /**
+             * Category
+             * @description 0无分类 1头衔 2徽章 3头像框 4气泡 5特效 6字体 7皮肤 8宠物
+             * @default 0
+             */
+            category: number;
+            /**
+             * Payload
+             * @description 展示载荷：文本/emoji/样式key
+             * @default
+             */
+            payload: string;
+        };
+        /** ProductUpdateIn */
+        ProductUpdateIn: {
+            /** Name */
+            name?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Price */
+            price?: number | null;
+            /** Stock */
+            stock?: number | null;
+            /** Image Url */
+            image_url?: string | null;
+            /** Category */
+            category?: number | null;
+            /** Payload */
+            payload?: string | null;
+            /**
+             * Enabled
+             * @description 0=下架 1=上架
+             */
+            enabled?: number | null;
         };
         /** ProfileUpdateIn */
         ProfileUpdateIn: {
@@ -1729,6 +1879,59 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ThemeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    my_items_api_account_items_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    equip_api_account_equip_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EquipIn"];
             };
         };
         responses: {
@@ -3100,6 +3303,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    create_product_api_admin_mall_products_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductCreateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_product_api_admin_mall_products__product_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                product_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductUpdateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

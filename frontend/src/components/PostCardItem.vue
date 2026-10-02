@@ -2,6 +2,7 @@
 /** 帖子卡片：广场/搜索/我的帖子 复用。 */
 import type { PostCard } from '@/api/types'
 import { useRouter } from 'vue-router'
+import UserDecor from './UserDecor.vue'
 
 defineProps<{ post: PostCard }>()
 const router = useRouter()
@@ -30,7 +31,10 @@ const router = useRouter()
         <span>{{ post.answer_count }} 回答</span>
         <span>{{ post.like_count }} 赞</span>
         <span>{{ post.view_count }} 浏览</span>
-        <span class="author">{{ post.author_nickname }}</span>
+        <span class="author">
+          {{ post.author_nickname }}
+          <UserDecor :equipped="post.author_equipped" />
+        </span>
       </span>
     </div>
   </div>

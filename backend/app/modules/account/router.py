@@ -4,6 +4,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, UploadFile
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -132,3 +133,28 @@ def update_theme(
     """设置本人装扮（V1.6）：整替语义，全空恢复默认。"""
     theme = service.update_theme(db, user, body.bg_color, body.bg_image, body.theme_color)
     return ok({"theme": theme})
+
+
+# ---- 个性化装扮（V1.15）：背包 + 佩戴/卸下/搭配 ----
+
+
+class EquipIn(BaseModel):
+    """批量搭配：{slot: product_id | null}，null=卸下；一次可设置多个槽位。"""
+
+    equips: dict[str, int | None] = Field(min_length=1)
+
+
+@router.get("/account/items")
+def my_items(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """我的背包：持有的个性化物品 + 当前佩戴状态。"""
+    return ok(service.my_items(db, user))
+
+
+@router.put("/account/equip")
+def equip(
+    body: EquipIn,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """佩戴/卸下/搭配装扮：校验持有与品类匹配，整替写 user.equipped 快照。"""
+    return ok(service.equip(db, user, body.equips))

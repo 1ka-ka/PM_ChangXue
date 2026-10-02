@@ -1,11 +1,13 @@
 <script setup lang="ts">
 /**
- * S11d 助人榜（M7-F29）+ V1.14 多维化：
- * 感谢值（周/月快照）+ 回答数/采纳数（日/周/月当期实时），点击跳个人主页。
+ * S11d 助人榜（M7-F29）+ V1.14 多维化 + V1.15 感谢值当期实时：
+ * 感谢值/回答数/采纳数均为当期实时榜，点击跳个人主页。
  */
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { get } from '@/api/http'
+import DecorAvatar from '@/components/DecorAvatar.vue'
+import UserDecor from '@/components/UserDecor.vue'
 
 interface RankUser {
   id: number
@@ -13,6 +15,7 @@ interface RankUser {
   avatar: string | null
   school: string
   major: string
+  equipped?: Record<string, { product_id: number; name: string; payload: string }> | null
 }
 
 interface RankItem {
@@ -90,14 +93,6 @@ watch(period, fetchRank)
       </div>
     </div>
 
-    <el-alert
-      v-if="data?.settling"
-      :title="`当期榜单结算中（${data.period}），暂展示上期结果`"
-      type="info"
-      :closable="false"
-      class="settling-tip"
-    />
-
     <div v-loading="loading" class="list">
       <template v-if="data?.items.length">
         <!-- 前三名领奖台 -->
@@ -110,10 +105,9 @@ watch(period, fetchRank)
             @click="router.push(`/u/${it.user.id}`)"
           >
             <div class="medal">{{ it.rank }}</div>
-            <el-avatar :size="48" :src="it.user.avatar || undefined" class="p-avatar">
-              {{ it.user.nickname.slice(0, 1) }}
-            </el-avatar>
+            <DecorAvatar :size="48" :src="it.user.avatar" :name="it.user.nickname" :equipped="it.user.equipped" />
             <span class="p-name">{{ it.user.nickname }}</span>
+            <UserDecor :equipped="it.user.equipped" />
             <span class="p-value">{{ it.value }} {{ unitText }}</span>
           </div>
         </div>
@@ -128,6 +122,7 @@ watch(period, fetchRank)
           >
             <span class="r-rank">{{ it.rank }}</span>
             <span class="r-name">{{ it.user.nickname }}</span>
+            <UserDecor :equipped="it.user.equipped" />
             <span v-if="it.user.school" class="r-school">{{ it.user.school }}</span>
             <span class="r-value">{{ it.value }}</span>
           </div>

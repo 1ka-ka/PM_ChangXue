@@ -1,8 +1,9 @@
 <script setup lang="ts">
 /**
  * V1.8 积分商城：在售商品网格 + 兑换（扣分确认）+ 我的兑换记录。
+ * V1.15 装扮商品分区：头衔/徽章/头像框/气泡/特效各区展示 + 已拥有标识 + 兑换后佩戴引导。
  */
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { get, post, ApiError } from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
@@ -15,6 +16,8 @@ interface Product {
   stock: number
   image_url: string | null
   type: number
+  category?: number
+  payload?: string
 }
 
 interface ExchangeItem {
@@ -38,16 +41,65 @@ const records = ref<Page<ExchangeItem> | null>(null)
 const loading = ref(false)
 const exchanging = ref(false)
 
+// V1.15 我的背包（已拥有的装扮商品）
+const ownedIds = ref<Set<number>>(new Set())
+
+// 装扮品类名（category 0 = 非装扮）
+const CATEGORY_NAMES: Record<number, string> = {
+  1: '头衔',
+  2: '徽章',
+  3: '头像框',
+  4: '气泡',
+  5: '特效',
+  6: '字体',
+  7: '皮肤',
+  8: '宠物',
+}
+
 async function fetchProducts() {
   loading.value = true
   try {
-    products.value = await get<Page<Product>>('/mall/products')
+    products.value = await get<Page<Product>>('/mall/products', { page_size: 50 })
   } catch {
     // 拦截器已提示
   } finally {
     loading.value = false
   }
 }
+
+async function fetchOwned() {
+  if (!auth.isLogged) return
+  try {
+    const r = await get<{ items: { product_id: number }[] }>('/account/items')
+    ownedIds.value = new Set(r.items.map((i) => i.product_id))
+  } catch {
+    // 拦截器已提示
+  }
+}
+
+// 在售商品分区：装扮各区（有货的品类） + 其他（实物/非装扮）
+const decorSections = computed(() => {
+  const all = products.value?.items ?? []
+  const sections: { category: number; label: string; items: Product[] }[] = []
+  for (const [cat, label] of Object.entries(CATEGORY_NAMES)) {
+    const items = all.filter((p) => p.category === Number(cat))
+    if (items.length) sections.push({ category: Number(cat), label, items })
+  }
+  return sections
+})
+
+const otherProducts = computed(() =>
+  (products.value?.items ?? []).filter((p) => !p.category),
+)
+
+// 展示顺序：装扮各区 + 其他（实物/非装扮）
+const allSections = computed(() => {
+  const sections = [...decorSections.value]
+  if (otherProducts.value.length) {
+    sections.push({ category: 0, label: '实物好礼', items: otherProducts.value })
+  }
+  return sections
+})
 
 async function fetchRecords() {
   if (!auth.isLogged) return
@@ -87,9 +139,14 @@ async function onExchange(p: Product) {
   exchanging.value = true
   try {
     const r = await post<{ exchange_id: number }>('/mall/exchange', { product_id: p.id })
-    ElMessage.success(`兑换成功（订单号 ${r.exchange_id}）`)
+    ElMessage.success(
+      p.type === 1
+        ? '兑换成功！可在「个人主页 → 个性装扮」中佩戴'
+        : `兑换成功（订单号 ${r.exchange_id}）`,
+    )
     await auth.fetchMe() // 刷新顶栏余额
     fetchProducts() // 刷新库存
+    fetchOwned() // 刷新已拥有标识
     if (tab.value === 'records') fetchRecords()
   } catch (e) {
     if (e instanceof ApiError) ElMessage.error(e.message)
@@ -100,6 +157,7 @@ async function onExchange(p: Product) {
 
 onMounted(() => {
   fetchProducts()
+  fetchOwned()
   if (auth.isLogged) fetchRecords()
 })
 </script>
@@ -115,36 +173,54 @@ onMounted(() => {
 
     <el-tabs v-model="tab" @tab-change="onTabChange">
       <el-tab-pane label="在售商品" name="products">
-        <div v-loading="loading" class="grid">
+        <div v-loading="loading" class="sections">
           <template v-if="products?.items.length">
-            <div v-for="p in products.items" :key="p.id" class="card">
-              <div class="thumb">
-                <img v-if="p.image_url" :src="p.image_url" :alt="p.name" />
-                <span v-else class="thumb-fallback">{{ p.name.slice(0, 1) }}</span>
-              </div>
-              <div class="info">
-                <div class="name-row">
-                  <span class="name">{{ p.name }}</span>
-                  <el-tag size="small" :type="p.type === 1 ? 'success' : 'warning'">
-                    {{ p.type === 1 ? '虚拟权益' : '实物' }}
-                  </el-tag>
-                </div>
-                <p class="desc">{{ p.description }}</p>
-                <div class="bottom">
-                  <span class="price">{{ p.price }} 积分</span>
-                  <span class="stock" :class="{ out: p.stock !== -1 && p.stock <= 0 }">
-                    {{ stockText(p) }}
-                  </span>
-                  <el-button
-                    type="primary"
-                    size="small"
-                    round
-                    :disabled="p.stock !== -1 && p.stock <= 0"
-                    :loading="exchanging"
-                    @click="onExchange(p)"
-                  >
-                    兑换
-                  </el-button>
+            <!-- V1.15 装扮分区：头衔/徽章/头像框/气泡/特效…（有货品类） + 其他 -->
+            <div
+              v-for="sec in allSections"
+              :key="sec.category"
+              class="section"
+            >
+              <h4 class="sec-title">{{ sec.label }}</h4>
+              <div class="grid">
+                <div v-for="p in sec.items" :key="p.id" class="card">
+                  <div class="thumb">
+                    <img v-if="p.image_url" :src="p.image_url" :alt="p.name" />
+                    <span
+                      v-else-if="p.category === 2 && p.payload"
+                      class="thumb-emoji"
+                    >{{ p.payload }}</span>
+                    <span v-else-if="p.category === 1 && p.payload" class="thumb-title">{{ p.payload }}</span>
+                    <span v-else class="thumb-fallback">{{ p.name.slice(0, 1) }}</span>
+                  </div>
+                  <div class="info">
+                    <div class="name-row">
+                      <span class="name">{{ p.name }}</span>
+                      <el-tag v-if="ownedIds.has(p.id)" size="small" type="success" effect="plain">
+                        已拥有
+                      </el-tag>
+                      <el-tag v-else size="small" :type="p.type === 1 ? 'success' : 'warning'">
+                        {{ p.type === 1 ? '虚拟权益' : '实物' }}
+                      </el-tag>
+                    </div>
+                    <p class="desc">{{ p.description }}</p>
+                    <div class="bottom">
+                      <span class="price">{{ p.price }} 积分</span>
+                      <span class="stock" :class="{ out: p.stock !== -1 && p.stock <= 0 }">
+                        {{ stockText(p) }}
+                      </span>
+                      <el-button
+                        type="primary"
+                        size="small"
+                        round
+                        :disabled="ownedIds.has(p.id) || (p.stock !== -1 && p.stock <= 0)"
+                        :loading="exchanging"
+                        @click="onExchange(p)"
+                      >
+                        {{ ownedIds.has(p.id) ? '已拥有' : '兑换' }}
+                      </el-button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -190,12 +266,27 @@ onMounted(() => {
   font-size: 18px;
 }
 
-.grid {
+/* V1.15 分区 */
+.sections {
   min-height: 200px;
+}
+
+.section + .section {
+  margin-top: 24px;
+}
+
+.sec-title {
+  margin: 12px 0 10px;
+  font-size: 15px;
+  color: #333;
+  border-left: 3px solid var(--el-color-primary);
+  padding-left: 8px;
+}
+
+.grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 16px;
-  padding-top: 8px;
 }
 
 .card {
@@ -229,6 +320,20 @@ onMounted(() => {
   font-size: 40px;
   font-weight: 700;
   color: var(--el-color-primary-light-5);
+}
+
+/* V1.15 装扮商品缩略图预览：徽章 emoji / 头衔文本 */
+.thumb-emoji {
+  font-size: 44px;
+}
+
+.thumb-title {
+  padding: 2px 10px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #8e6df0, #b8a5ff);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
 }
 
 .info {

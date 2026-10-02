@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import BizError, ErrCode
-from app.models import MallExchange, MallProduct, User
+from app.models import MallExchange, MallProduct, User, UserItem
 from app.modules.credit import service as credit_service
 from app.modules.credit.sources import CreditSource
 
@@ -46,6 +46,8 @@ def list_products(db: Session, offset: int, limit: int) -> dict:
                 "stock": p.stock,
                 "image_url": p.image_url,
                 "type": p.type,
+                "category": p.category,
+                "payload": p.payload,
             }
             for p in rows[offset : offset + limit]
         ],
@@ -53,12 +55,25 @@ def list_products(db: Session, offset: int, limit: int) -> dict:
 
 
 def exchange(db: Session, user: User, product_id: int) -> dict:
-    """兑换商品：单事务完成扣分+减库存+落记录；返回兑换结果。"""
+    """兑换商品：单事务完成扣分+减库存+落记录；返回兑换结果。
+    V1.15：虚拟商品同时入背包（user_item），同款已持有拒绝 40917。
+    """
     product = _lock_product(db, product_id)
     if product is None or product.enabled != 1:
         raise BizError(ErrCode.MALL_OUT_OF_STOCK, "商品不存在或已下架")
     if product.stock != -1 and product.stock <= 0:
         raise BizError(ErrCode.MALL_OUT_OF_STOCK, "商品库存不足")
+
+    # 个性化虚拟商品：入背包，同款唯一（40917）
+    if product.type == 1:
+        owned = (
+            db.execute(
+                select(UserItem.id).where(UserItem.user_id == user.id, UserItem.product_id == product.id)
+            ).scalar()
+        )
+        if owned:
+            raise BizError(ErrCode.ALREADY_OWNED, "已持有该装扮，无需重复兑换")
+        db.add(UserItem(user_id=user.id, product_id=product.id))
 
     ex = MallExchange(
         user_id=user.id,

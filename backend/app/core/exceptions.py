@@ -51,6 +51,8 @@ class ErrCode:
     SMS_TOO_FREQUENT = 40914  # 验证码发送过于频繁（60s 内，V1.4）
     SMS_DAILY_LIMIT = 40915  # 验证码当日发送次数超限（V1.4）
     MALL_OUT_OF_STOCK = 40916  # 商品库存不足或已下架（V1.8）
+    ALREADY_OWNED = 40917  # 已持有同款虚拟商品，无需重复兑换（V1.15）
+    ITEM_NOT_OWNED = 40918  # 未持有该装扮，无法佩戴（V1.15）
 
     # ---- 500xx 服务器 ----
     INTERNAL = 50001

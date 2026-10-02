@@ -23,6 +23,7 @@ def _answer_dict(db: Session, a: Answer, viewer: User | None) -> dict:
         "post_id": a.post_id,
         "author_id": a.author_id,
         "author_nickname": author.nickname if author else "已注销",
+        "author_equipped": author.equipped if author else None,  # V1.15 佩戴（头衔/徽章/特效）
         "content": a.content,
         "is_accepted": bool(a.is_accepted),
         "is_best": bool(a.is_best),
