@@ -87,6 +87,7 @@ def accept(db: Session, user: User, answer_id: int) -> dict:
 
     # ---- 单事务编排 ----
     answer.is_accepted = 1
+    answer.accepted_at = datetime.now()  # 采纳发生时间（V1.14 采纳数实时榜按此统计）
     first_accept = post.status == 0
     if first_accept:
         post.status = 1

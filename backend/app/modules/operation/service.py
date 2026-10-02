@@ -270,6 +270,18 @@ def _act_comment(db: Session, accounts: list[User]) -> dict:
     return {"action": ACT_COMMENT, "ok": True, "detail": post_title}
 
 
+def _reply_target_alive(db: Session, root: Comment) -> bool:
+    """回复目标存活校验：删帖后评论残留（target_type=1）或回答被删（=2）时不可回复。"""
+    if root.target_type == 1:
+        p = db.get(Post, root.target_id)
+        return p is not None and p.deleted_at is None
+    a = db.get(Answer, root.target_id)
+    if a is None or a.deleted_at is not None:
+        return False
+    p = db.get(Post, a.post_id)
+    return p is not None and p.deleted_at is None
+
+
 def _act_reply(db: Session, accounts: list[User]) -> dict:
     user, persona = _pick_persona(accounts)
     roots = (db.execute(
@@ -277,6 +289,7 @@ def _act_reply(db: Session, accounts: list[User]) -> dict:
             Comment.deleted_at.is_(None), Comment.parent_id.is_(None), Comment.author_id != user.id
         ).order_by(Comment.id.desc()).limit(30)
     ).scalars().all())
+    roots = [r for r in roots if _reply_target_alive(db, r)]  # 过滤目标已删的残留评论
     if not roots:
         return {"action": ACT_REPLY, "ok": False, "detail": "无可回复评论，跳过"}
     root = random.choice(roots)

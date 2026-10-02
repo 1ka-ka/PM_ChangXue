@@ -1,8 +1,9 @@
 <script setup lang="ts">
 /**
- * S11d 助人榜（M7-F29）：周/月切换，快照榜单 + settling 提示，前三名样式。
+ * S11d 助人榜（M7-F29）+ V1.14 多维化：
+ * 感谢值（周/月快照）+ 回答数/采纳数（日/周/月当期实时），点击跳个人主页。
  */
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { get } from '@/api/http'
 
@@ -26,15 +27,40 @@ interface RankData {
   items: RankItem[]
 }
 
+type Metric = 'gratitude' | 'answers' | 'accepts'
+
 const router = useRouter()
-const period = ref<'week' | 'month'>('week')
+const metric = ref<Metric>('gratitude')
+const period = ref<'day' | 'week' | 'month'>('week')
 const data = ref<RankData | null>(null)
 const loading = ref(false)
+
+const unitText = computed(() =>
+  metric.value === 'gratitude' ? '感谢值' : metric.value === 'answers' ? '回答' : '采纳',
+)
+
+const emptyText = computed(() =>
+  metric.value === 'gratitude'
+    ? '暂无上榜数据，回答被采纳即可累积感谢值'
+    : metric.value === 'answers'
+      ? '本期暂无回答，回答问题即可上榜'
+      : '本期暂无采纳，回答被提问者采纳即可上榜',
+)
+
+function onMetricChange(val: Metric) {
+  metric.value = val
+  // 感谢值仅支持周/月：从日榜切回时纠正（watch(period) 会触发重新拉取）
+  if (val === 'gratitude' && period.value === 'day') {
+    period.value = 'week'
+    return
+  }
+  fetchRank()
+}
 
 async function fetchRank() {
   loading.value = true
   try {
-    data.value = await get<RankData>('/ranks', { period: period.value })
+    data.value = await get<RankData>('/ranks', { metric: metric.value, period: period.value })
   } catch {
     // 拦截器已提示
   } finally {
@@ -50,10 +76,18 @@ watch(period, fetchRank)
   <div class="cx-card rank">
     <div class="head-row">
       <h2>助人榜</h2>
-      <el-radio-group v-model="period" size="small">
-        <el-radio-button value="week">周榜</el-radio-button>
-        <el-radio-button value="month">月榜</el-radio-button>
-      </el-radio-group>
+      <div class="switches">
+        <el-radio-group :model-value="metric" size="small" @change="onMetricChange">
+          <el-radio-button value="gratitude">感谢值</el-radio-button>
+          <el-radio-button value="answers">回答数</el-radio-button>
+          <el-radio-button value="accepts">采纳数</el-radio-button>
+        </el-radio-group>
+        <el-radio-group v-model="period" size="small">
+          <el-radio-button v-if="metric !== 'gratitude'" value="day">日榜</el-radio-button>
+          <el-radio-button value="week">周榜</el-radio-button>
+          <el-radio-button value="month">月榜</el-radio-button>
+        </el-radio-group>
+      </div>
     </div>
 
     <el-alert
@@ -80,7 +114,7 @@ watch(period, fetchRank)
               {{ it.user.nickname.slice(0, 1) }}
             </el-avatar>
             <span class="p-name">{{ it.user.nickname }}</span>
-            <span class="p-value">{{ it.value }} 感谢值</span>
+            <span class="p-value">{{ it.value }} {{ unitText }}</span>
           </div>
         </div>
 
@@ -99,7 +133,7 @@ watch(period, fetchRank)
           </div>
         </div>
       </template>
-      <el-empty v-else-if="!loading" description="暂无上榜数据，回答被采纳即可累积感谢值" />
+      <el-empty v-else-if="!loading" :description="emptyText" />
     </div>
   </div>
 </template>
@@ -119,6 +153,13 @@ watch(period, fetchRank)
 .head-row h2 {
   margin: 0;
   font-size: 18px;
+}
+
+.switches {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .settling-tip {

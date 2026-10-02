@@ -76,6 +76,7 @@ class Answer(Base):
     author_id: Mapped[int] = mapped_column(BigInt, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     is_accepted: Mapped[int] = mapped_column(SmallInteger, default=0)
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)  # 采纳发生时间（V1.14，采纳数实时榜按此统计）
     is_best: Mapped[int] = mapped_column(SmallInteger, default=0)
     like_count: Mapped[int] = mapped_column(Integer, default=0)
     ai_rel_score: Mapped[int | None] = mapped_column(Integer, default=None)  # AI 可靠性评分 0-100（V1.3，异步生成）
