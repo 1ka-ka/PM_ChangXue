@@ -162,8 +162,11 @@ def test_contract_field_constraints():
 
 
 def test_scene_map_and_contracts_registry():
-    """场景注册表：五场景齐全，输入/输出模型与 ARCH §6 对应。"""
-    assert set(SCENE_CONTRACTS) == {"summary", "ref_answer", "reliability", "quality", "moderation"}
+    """场景注册表：八场景齐全（V1.13 增运营三场景），输入/输出模型与 ARCH §6 对应。"""
+    assert set(SCENE_CONTRACTS) == {
+        "summary", "ref_answer", "reliability", "quality", "moderation",
+        "op_question", "op_answer", "op_comment",
+    }
     assert SCENE_CONTRACTS["summary"] == (SummaryInput, SummaryOutput)
     assert SCENE_CONTRACTS["moderation"] == (ModerationInput, ModerationOutput)
 

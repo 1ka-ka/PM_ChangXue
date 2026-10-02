@@ -21,6 +21,7 @@ class User(Base):
     major: Mapped[str] = mapped_column(String(50), default="")
     theme_config = mapped_column(JSON, nullable=True)  # P2 个性化装扮配置（P0 恒 NULL）
     role: Mapped[int] = mapped_column(SmallInteger, default=0)  # 0普通用户 1管理员
+    is_op: Mapped[int] = mapped_column(SmallInteger, default=0)  # V1.13 系统运营账号（内部标记，API 不暴露，地位等同真人）
     status: Mapped[int] = mapped_column(SmallInteger, default=0)  # 0正常 1封禁
     banned_until: Mapped[datetime | None] = mapped_column(DateTime, default=None)  # NULL=永久
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)

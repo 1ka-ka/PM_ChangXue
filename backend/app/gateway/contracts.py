@@ -16,6 +16,9 @@ SCENE_MODEL_MAP = {
     "reliability": "qwen-plus",   # 可靠性评分：需推理能力
     "quality": "qwen-plus",       # 质量检测：需判别能力
     "moderation": "qwen-plus",    # 违规分级：需判别能力
+    "op_question": "qwen-plus",   # V1.13 运营提问生成：需创意+拟真
+    "op_answer": "qwen-plus",     # V1.13 运营回答生成：需推理能力
+    "op_comment": "qwen-turbo",   # V1.13 运营短评论：轻量生成
 }
 
 
@@ -95,3 +98,48 @@ SCENE_CONTRACTS: dict[str, tuple[type[BaseModel], type[BaseModel]]] = {
     "quality": (QualityInput, QualityOutput),
     "moderation": (ModerationInput, ModerationOutput),
 }
+
+
+# ---- 6-8. 系统账号运营内容生成（V1.13）----
+
+
+class OpQuestionInput(BaseModel):
+    persona: str = Field(min_length=1, max_length=300, description="运营账号人设（方向/风格）")
+    tag_names: list[str] = Field(min_length=1, description="可选标签池")
+    recent_titles: list[str] = Field(default_factory=list, max_length=30, description="近期已有问题标题（防重复）")
+
+
+class OpQuestionOutput(BaseModel):
+    title: str = Field(min_length=5, max_length=50)
+    content: str = Field(min_length=20, max_length=3000)
+    tags: list[str] = Field(min_length=1, max_length=3, description="从 tag_names 中选择")
+
+
+class OpAnswerInput(BaseModel):
+    persona: str = Field(min_length=1, max_length=300)
+    post_title: str = Field(min_length=1)
+    post_content: str = ""
+    tag_names: list[str] = Field(default_factory=list)
+
+
+class OpAnswerOutput(BaseModel):
+    content: str = Field(min_length=30, max_length=4000)
+
+
+class OpCommentInput(BaseModel):
+    persona: str = Field(min_length=1, max_length=300)
+    post_title: str = Field(min_length=1)
+    target_excerpt: str = Field(default="", max_length=500, description="被评论/被回复内容节选")
+    is_reply: bool = Field(default=False, description="True=回复某条评论")
+    reply_to: str = Field(default="", max_length=200, description="被回复人昵称")
+
+
+class OpCommentOutput(BaseModel):
+    content: str = Field(min_length=2, max_length=300)
+
+
+SCENE_CONTRACTS.update({
+    "op_question": (OpQuestionInput, OpQuestionOutput),
+    "op_answer": (OpAnswerInput, OpAnswerOutput),
+    "op_comment": (OpCommentInput, OpCommentOutput),
+})

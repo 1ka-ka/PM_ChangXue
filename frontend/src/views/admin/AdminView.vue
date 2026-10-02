@@ -91,6 +91,72 @@ const tagDialog = reactive({
 const logs = ref<LogItem[]>([])
 const logsLoading = ref(false)
 
+// ---- 系统运营（V1.13）----
+interface OpAccount {
+  id: number
+  nickname: string
+  school: string
+  major: string
+  focus: string
+  balance: number
+  post_count: number
+  answer_count: number
+}
+
+interface OpLog {
+  id: number
+  action: number
+  action_text: string
+  ok: boolean
+  detail: string
+  nickname: string | null
+  created_at: string
+}
+
+interface OpStatus {
+  enabled: boolean
+  llm_ready: boolean
+  schedule: { tick_minutes: number; hours: string; probability: number }
+  quota: { questions: number; interactions: number }
+  today: { questions: number; interactions: number }
+  accounts: OpAccount[]
+  recent: OpLog[]
+}
+
+const opStatus = ref<OpStatus | null>(null)
+const opLoading = ref(false)
+const opRunning = ref(false)
+const opLastRun = ref<{ action_text?: string; ok: boolean; detail: string }[] | null>(null)
+
+async function loadOperation() {
+  opLoading.value = true
+  try {
+    opStatus.value = await get<OpStatus>('/admin/operation/status')
+  } finally {
+    opLoading.value = false
+  }
+}
+
+async function runOperation() {
+  opRunning.value = true
+  opLastRun.value = null
+  try {
+    const r = await post<{ executed: { action: number; ok: boolean; detail: string }[] }>('/admin/operation/run')
+    const textMap: Record<number, string> = { 1: '提问', 2: '回答', 3: '评论', 4: '回复', 5: '采纳', 6: '点赞' }
+    opLastRun.value = r.executed.map((e) => ({
+      action_text: e.action ? textMap[e.action] || `动作${e.action}` : '未执行',
+      ok: e.ok,
+      detail: e.detail,
+    }))
+    ElMessage.success(`本轮执行 ${r.executed.length} 个动作`)
+    await loadOperation()
+  } catch {
+    // 拦截器已提示
+  } finally {
+    opRunning.value = false
+  }
+}
+
 function fmtTime(s: string) {
   return (s || '').slice(0, 16).replace('T', ' ')
 }
@@ -214,6 +280,7 @@ function onTab(name: string) {
   if (name === 'stats') loadStats()
   else if (name === 'reports') loadReports()
   else if (name === 'tags') loadTags()
+  else if (name === 'operation') loadOperation()
   else loadLogs()
 }
 
@@ -328,6 +395,90 @@ onMounted(() => {
             </template>
           </el-table-column>
         </el-table>
+      </el-tab-pane>
+
+      <!-- 系统运营（V1.13） -->
+      <el-tab-pane label="系统运营" name="operation">
+        <div v-loading="opLoading" class="op-panel">
+          <div class="toolbar">
+            <div class="op-meta">
+              <el-tag :type="opStatus?.enabled ? 'success' : 'info'" size="small">自动调度{{ opStatus?.enabled ? '已开启' : '已关闭' }}</el-tag>
+              <el-tag :type="opStatus?.llm_ready ? 'success' : 'danger'" size="small">
+                LLM{{ opStatus?.llm_ready ? '在线' : '不可用（仅执行采纳/点赞）' }}
+              </el-tag>
+              <span v-if="opStatus" class="op-hint">
+                每 {{ opStatus.schedule.tick_minutes }} 分钟一轮（{{ opStatus.schedule.hours }}，{{ Math.round(opStatus.schedule.probability * 100) }}% 概率执行）
+              </span>
+            </div>
+            <div>
+              <el-button size="small" @click="loadOperation">刷新</el-button>
+              <el-button type="primary" size="small" :loading="opRunning" @click="runOperation">
+                立即执行一轮（1-3 个动作）
+              </el-button>
+            </div>
+          </div>
+
+          <!-- 当日进度 -->
+          <div class="stat-grid op-progress">
+            <div class="cx-card stat">
+              <span class="num">{{ opStatus?.today.questions ?? '-' }}/{{ opStatus?.quota.questions ?? '-' }}</span>
+              <span class="label">今日新提问</span>
+              <el-progress
+                v-if="opStatus"
+                :percentage="Math.min(100, Math.round((opStatus.today.questions / opStatus.quota.questions) * 100))"
+                :stroke-width="6"
+                :show-text="false"
+              />
+            </div>
+            <div class="cx-card stat">
+              <span class="num">{{ opStatus?.today.interactions ?? '-' }}/{{ opStatus?.quota.interactions ?? '-' }}</span>
+              <span class="label">今日互动（答/评/采纳/赞）</span>
+              <el-progress
+                v-if="opStatus"
+                :percentage="Math.min(100, Math.round((opStatus.today.interactions / opStatus.quota.interactions) * 100))"
+                :stroke-width="6"
+                :show-text="false"
+              />
+            </div>
+          </div>
+
+          <!-- 上一轮结果 -->
+          <div v-if="opLastRun" class="cx-card op-lastrun">
+            <b>上一轮执行结果：</b>
+            <span v-for="(item, i) in opLastRun" :key="i" class="lastrun-item">
+              <el-tag size="small" :type="item.ok ? 'success' : 'info'">{{ item.action_text }}</el-tag>
+              <span class="detail">{{ item.detail }}</span>
+            </span>
+          </div>
+
+          <!-- 运营账号池 -->
+          <el-table :data="opStatus?.accounts ?? []" size="small">
+            <el-table-column prop="nickname" label="账号" width="140" />
+            <el-table-column prop="school" label="学校" width="150" />
+            <el-table-column prop="focus" label="人设方向" />
+            <el-table-column prop="balance" label="积分" width="90" />
+            <el-table-column prop="post_count" label="提问" width="80" />
+            <el-table-column prop="answer_count" label="回答" width="80" />
+          </el-table>
+
+          <!-- 最近动作日志 -->
+          <h4 class="op-section-title">最近动作</h4>
+          <el-table :data="opStatus?.recent ?? []" size="small">
+            <el-table-column label="时间" width="150">
+              <template #default="{ row }">{{ fmtTime(row.created_at) }}</template>
+            </el-table-column>
+            <el-table-column label="账号" width="140">
+              <template #default="{ row }">{{ row.nickname || '-' }}</template>
+            </el-table-column>
+            <el-table-column label="动作" width="100">
+              <template #default="{ row }">
+                <el-tag size="small" :type="row.ok ? 'success' : 'info'" effect="plain">{{ row.action_text }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="detail" label="详情" show-overflow-tooltip />
+          </el-table>
+          <el-empty v-if="!opLoading && !opStatus?.recent?.length" description="暂无运营动作（等待调度或点击上方按钮触发）" />
+        </div>
       </el-tab-pane>
 
       <!-- 操作日志 -->
@@ -532,5 +683,50 @@ onMounted(() => {
   margin: 0 0 10px;
   color: #666;
   font-size: 13px;
+}
+
+/* 系统运营面板 */
+.op-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.op-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.op-hint {
+  color: #999;
+  font-size: 12px;
+}
+
+.op-progress :deep(.el-progress) {
+  width: 70%;
+  margin-top: 8px;
+}
+
+.op-lastrun {
+  padding: 12px 16px;
+  font-size: 13px;
+}
+
+.lastrun-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 16px;
+}
+
+.lastrun-item .detail {
+  color: #666;
+}
+
+.op-section-title {
+  margin: 4px 0 0;
+  color: #666;
 }
 </style>

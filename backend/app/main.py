@@ -43,8 +43,10 @@ def create_app() -> FastAPI:
         scheduler = start_scheduler(settings.APP_ENV)
         if scheduler is not None:
             from app.jobs.ai_fallback import register as register_ai_fallback
+            from app.jobs.operation import register as register_operation
 
             register_ai_fallback(scheduler)
+            register_operation(scheduler)  # V1.13 系统账号自动运营
         yield
         if scheduler is not None:
             scheduler.shutdown(wait=False)

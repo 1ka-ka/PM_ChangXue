@@ -66,5 +66,16 @@ class Settings(BaseSettings):
     AI_FALLBACK_SCAN_INTERVAL: int = 5  # 扫描周期（分钟）
     AI_FALLBACK_BATCH: int = 5  # 每轮最多生成条数（防 LLM 过载）
 
+    # ---- 系统账号自动运营（V1.13；拟真节奏，LLM 全生成，降级时仅执行免 LLM 动作）----
+    OP_ENABLED: bool = True  # 定时调度总开关（管理后台手动触发不受限）
+    OP_TICK_MINUTES: int = 30  # 调度轮询间隔（分钟）
+    OP_ACT_PROBABILITY: float = 0.65  # 每轮实际执行动作的概率（随机分布拟真）
+    OP_HOUR_START: int = 8  # 工作时段窗口
+    OP_HOUR_END: int = 23
+    OP_DAILY_QUESTIONS: int = 3  # 每日新提问上限（概率自然波动在 2-3）
+    OP_DAILY_INTERACTIONS: int = 10  # 每日互动上限（回答/评论/回复/采纳/点赞）
+    OP_SUBSIDY_THRESHOLD: int = 150  # 余额低于该值的运营账号发放补贴
+    OP_SUBSIDY_TARGET: int = 300  # 补贴目标余额（正常积分循环之上的定期补贴）
+
 
 settings = Settings()

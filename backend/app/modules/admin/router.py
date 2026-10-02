@@ -96,3 +96,28 @@ def stats(
     db: Session = Depends(get_db),
 ):
     return ok(service.stats(db))
+
+
+# ---- 系统账号自动运营（V1.13）----
+
+
+@router.post("/admin/operation/run")
+def operation_run(
+    _: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """手动触发一轮运营（随机 1-3 个动作，不受配额/时段限制；用于演示与冷启动补充）。"""
+    from app.modules.operation import service as op_service
+
+    return ok(op_service.run_round(db, manual=True))
+
+
+@router.get("/admin/operation/status")
+def operation_status(
+    _: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """运营状态：当日进度 / 配额 / 账号池 / 最近动作日志。"""
+    from app.modules.operation import service as op_service
+
+    return ok(op_service.status(db))
