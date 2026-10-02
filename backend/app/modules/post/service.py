@@ -8,11 +8,11 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.exceptions import BizError, ErrCode
 from app.core.sensitive import contains_sensitive
-from app.models import Favorite, LikeRecord, Post, PostTag, Tag, User
+from app.models import Answer, Comment, Favorite, LikeRecord, Post, PostTag, Tag, User
 from app.modules.credit import service as credit_service
 from app.modules.notify import service as notify_service
 from app.modules.credit.sources import CreditSource
-from app.modules.post.schemas import PostCard, PostDetail, TagItem
+from app.modules.post.schemas import MyAnswerItem, MyCommentItem, MyLikeItem, PostCard, PostDetail, TagItem
 
 EDIT_WINDOW_MINUTES = 15
 
@@ -273,6 +273,172 @@ def my_posts(db: Session, user_id: int, status: int | None, offset: int, limit: 
         db.execute(q.order_by(Post.id.desc()).offset(offset).limit(limit)).scalars().all()
     )
     return {"total": total, "items": [_card(db, p) for p in rows]}
+
+
+# ---- 个人中心（V1.12）：我的回答/评论/点赞 + 他人公开内容 + 统计 ----
+
+
+def _paginate(q, db: Session, offset: int, limit: int):
+    """通用计数+分页（与 my_posts 同口径）。"""
+    total = len(db.execute(q).scalars().all())
+    rows = db.execute(q.offset(offset).limit(limit)).scalars().all()
+    return total, rows
+
+
+def _answer_items(db: Session, answers: list[Answer]) -> list[MyAnswerItem]:
+    """Answer → MyAnswerItem：批量查所属帖（未删），已删帖 post_title=None。"""
+    post_ids = {a.post_id for a in answers}
+    posts = (
+        db.execute(select(Post).where(Post.id.in_(post_ids), Post.deleted_at.is_(None))).scalars().all()
+        if post_ids
+        else []
+    )
+    pmap = {p.id: p for p in posts}
+    return [
+        MyAnswerItem(
+            id=a.id,
+            post_id=a.post_id,
+            post_title=pmap[a.post_id].title if a.post_id in pmap else None,
+            post_status=pmap[a.post_id].status if a.post_id in pmap else None,
+            content=a.content,
+            is_accepted=bool(a.is_accepted),
+            is_best=bool(a.is_best),
+            like_count=a.like_count,
+            created_at=a.created_at,
+        )
+        for a in answers
+    ]
+
+
+def my_answers(db: Session, user_id: int, offset: int, limit: int) -> dict:
+    """我的回答列表：倒序，含所属帖标题与采纳/最佳/赞数。"""
+    q = select(Answer).where(Answer.author_id == user_id, Answer.deleted_at.is_(None))
+    total, rows = _paginate(q.order_by(Answer.id.desc()), db, offset, limit)
+    return {"total": total, "items": [i.model_dump() for i in _answer_items(db, rows)]}
+
+
+def user_public_answers(db: Session, user_id: int, offset: int, limit: int) -> dict:
+    """他人主页：TA 的公开回答（本人也可看，同一份数据）。"""
+    return my_answers(db, user_id, offset, limit)
+
+
+def user_public_posts(db: Session, user_id: int, offset: int, limit: int) -> dict:
+    """他人主页：TA 的公开提问。"""
+    q = select(Post).where(Post.author_id == user_id, Post.deleted_at.is_(None))
+    total, rows = _paginate(q.order_by(Post.id.desc()), db, offset, limit)
+    return {"total": total, "items": [_card(db, p) for p in rows]}
+
+
+def my_comments(db: Session, user_id: int, offset: int, limit: int) -> dict:
+    """我的评论列表：倒序；target 解析所属帖（回答评论取其 post_id）。"""
+    q = select(Comment).where(Comment.author_id == user_id, Comment.deleted_at.is_(None))
+    total, rows = _paginate(q.order_by(Comment.id.desc()), db, offset, limit)
+
+    items: list[MyCommentItem] = []
+    for c in rows:
+        post_id: int | None = None
+        post_title: str | None = None
+        if c.target_type == 1:
+            p = db.get(Post, c.target_id)
+            if p is not None and p.deleted_at is None:
+                post_id, post_title = p.id, p.title
+        else:
+            a = db.get(Answer, c.target_id)
+            if a is not None and a.deleted_at is None:
+                p = db.get(Post, a.post_id)
+                if p is not None and p.deleted_at is None:
+                    post_id, post_title = p.id, p.title
+        items.append(
+            MyCommentItem(
+                id=c.id,
+                target_type=c.target_type,
+                target_id=c.target_id,
+                post_id=post_id,
+                post_title=post_title,
+                content=c.content,
+                created_at=c.created_at,
+            )
+        )
+    return {"total": total, "items": [i.model_dump() for i in items]}
+
+
+def my_likes(db: Session, user_id: int, offset: int, limit: int) -> dict:
+    """我的点赞列表：帖/答/评论混合，倒序；目标已删的条目跳过（点赞记录随目标软删清理，
+    此处兜底防御）。"""
+    q = select(LikeRecord).where(LikeRecord.user_id == user_id)
+    total, rows = _paginate(q.order_by(LikeRecord.created_at.desc(), LikeRecord.target_id.desc()), db, offset, limit)
+
+    items: list[MyLikeItem] = []
+    for r in rows:
+        if r.target_type == 1:
+            p = db.get(Post, r.target_id)
+            if p is None or p.deleted_at is not None:
+                continue
+            items.append(
+                MyLikeItem(
+                    target_type=1, target_id=p.id, post_id=p.id, post_title=p.title,
+                    content=p.title, author_nickname=db.get(User, p.author_id).nickname,
+                    created_at=r.created_at,
+                )
+            )
+        elif r.target_type == 2:
+            a = db.get(Answer, r.target_id)
+            if a is None or a.deleted_at is not None:
+                continue
+            p = db.get(Post, a.post_id)
+            items.append(
+                MyLikeItem(
+                    target_type=2, target_id=a.id,
+                    post_id=p.id if p and p.deleted_at is None else None,
+                    post_title=p.title if p and p.deleted_at is None else None,
+                    content=a.content, author_nickname=db.get(User, a.author_id).nickname,
+                    created_at=r.created_at,
+                )
+            )
+        else:
+            c = db.get(Comment, r.target_id)
+            if c is None or c.deleted_at is not None:
+                continue
+            # 评论点赞：定位其所属帖供跳转
+            post_id = post_title = None
+            if c.target_type == 1:
+                p = db.get(Post, c.target_id)
+                if p is not None and p.deleted_at is None:
+                    post_id, post_title = p.id, p.title
+            else:
+                a = db.get(Answer, c.target_id)
+                if a is not None and a.deleted_at is None:
+                    p = db.get(Post, a.post_id)
+                    if p is not None and p.deleted_at is None:
+                        post_id, post_title = p.id, p.title
+            items.append(
+                MyLikeItem(
+                    target_type=3, target_id=c.id, post_id=post_id, post_title=post_title,
+                    content=c.content, author_nickname=db.get(User, c.author_id).nickname,
+                    created_at=r.created_at,
+                )
+            )
+    return {"total": total, "items": [i.model_dump() for i in items]}
+
+
+def user_stats(db: Session, user_id: int) -> dict:
+    """个人主页统计：提问数/回答数/总获赞数。"""
+    post_count = len(
+        db.execute(select(Post.id).where(Post.author_id == user_id, Post.deleted_at.is_(None))).all()
+    )
+    answers = (
+        db.execute(select(Answer).where(Answer.author_id == user_id, Answer.deleted_at.is_(None)))
+        .scalars().all()
+    )
+    post_likes = db.execute(
+        select(Post.like_count).where(Post.author_id == user_id, Post.deleted_at.is_(None))
+    ).scalars().all()
+    like_received = sum(post_likes) + sum(a.like_count for a in answers)
+    return {
+        "post_count": post_count,
+        "answer_count": len(answers),
+        "like_received": like_received,
+    }
 
 
 # ---- AI 摘要（V1.2 summary 场景）----

@@ -138,3 +138,63 @@ def my_posts(
     db: Session = Depends(get_db),
 ):
     return ok(service.my_posts(db, user.id, status, page.offset, page.limit))
+
+
+# ---- 个人中心（V1.12）：我的回答/评论/点赞 + 他人公开内容 ----
+
+
+@router.get("/account/my-answers")
+def my_answers(
+    page: PageParams = Depends(),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return ok(service.my_answers(db, user.id, page.offset, page.limit))
+
+
+@router.get("/account/my-comments")
+def my_comments(
+    page: PageParams = Depends(),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return ok(service.my_comments(db, user.id, page.offset, page.limit))
+
+
+@router.get("/account/my-likes")
+def my_likes(
+    page: PageParams = Depends(),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return ok(service.my_likes(db, user.id, page.offset, page.limit))
+
+
+@router.get("/account/users/{user_id}/posts")
+def user_posts(
+    user_id: int,
+    page: PageParams = Depends(),
+    db: Session = Depends(get_db),
+):
+    """他人主页：TA 的公开提问（免登录）。"""
+    from app.models import User as UserModel
+
+    u = db.get(UserModel, user_id)
+    if u is None or u.deleted_at is not None:
+        raise BizError(ErrCode.NOT_FOUND, "用户不存在")
+    return ok(service.user_public_posts(db, user_id, page.offset, page.limit))
+
+
+@router.get("/account/users/{user_id}/answers")
+def user_answers(
+    user_id: int,
+    page: PageParams = Depends(),
+    db: Session = Depends(get_db),
+):
+    """他人主页：TA 的公开回答（免登录）。"""
+    from app.models import User as UserModel
+
+    u = db.get(UserModel, user_id)
+    if u is None or u.deleted_at is not None:
+        raise BizError(ErrCode.NOT_FOUND, "用户不存在")
+    return ok(service.user_public_answers(db, user_id, page.offset, page.limit))

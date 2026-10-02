@@ -68,6 +68,8 @@ function onSearch() {
 function onCommand(cmd: string) {
   if (cmd === 'profile') {
     router.push(`/u/${auth.user?.id}`)
+  } else if (cmd === 'me') {
+    router.push('/me')
   } else if (cmd === 'notifications') {
     router.push('/notifications')
   } else if (cmd === 'messages') {
@@ -118,7 +120,8 @@ function onCommand(cmd: string) {
                       管理员
                     </el-tag>
                   </el-dropdown-item>
-                  <el-dropdown-item command="notifications" divided>
+                  <el-dropdown-item command="me" divided>个人中心</el-dropdown-item>
+                  <el-dropdown-item command="notifications">
                     通知中心
                   </el-dropdown-item>
                   <el-dropdown-item command="messages">我的私信</el-dropdown-item>

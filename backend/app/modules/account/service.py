@@ -101,12 +101,19 @@ def full_info(db: Session, user: User) -> dict:
 
 
 def public_profile(db: Session, viewer: User | None, user_id: int) -> dict:
-    """个人主页（公开视角）：credit_balance 仅本人可见。"""
+    """个人主页（公开视角）：credit_balance 仅本人可见；V1.12 增加统计与注册时间。"""
+    from app.modules.post import service as post_service
+
     user = db.get(User, user_id)
     if user is None or user.deleted_at is not None:
         raise BizError(ErrCode.NOT_FOUND, "用户不存在")
     g = _gratitude_of(db, user.id)
-    data = brief(user) | {"gratitude": g.model_dump(), "is_self": False}
+    data = brief(user) | {
+        "gratitude": g.model_dump(),
+        "is_self": False,
+        "created_at": user.created_at,
+        **post_service.user_stats(db, user.id),
+    }
     if viewer is not None and viewer.id == user_id:
         account = db.get(CreditAccount, user.id)
         data["credit_balance"] = account.balance if account else 0

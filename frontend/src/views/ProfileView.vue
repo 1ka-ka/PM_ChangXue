@@ -1,12 +1,13 @@
 <script setup lang="ts">
 /**
- * S11d 个人主页（M2-F05/F06）：公开视角 + 本人视角 Tabs（我的帖子/收藏/积分明细）+ 资料编辑。
+ * V1.12 个人主页（/u/:id）：基本信息 + 统计（提问/回答/获赞/感谢值）+ 公开内容（TA 的提问/回答）。
+ * 本人个性化管理（收藏/评论/点赞/积分等）已移至个人中心 /me。
  */
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { get, put } from '@/api/http'
-import type { Page, PostCard } from '@/api/types'
+import type { MyAnswerItem, Page, PostCard } from '@/api/types'
 import PostCardItem from '@/components/PostCardItem.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore, type ThemeConfig } from '@/stores/theme'
@@ -27,24 +28,10 @@ interface ProfileInfo {
   is_self: boolean
   phone?: string
   credit_balance?: number
-}
-
-interface CreditLogItem {
-  id: number
-  change: number
-  balance_after: number
-  source_text: string
-  note: string
-  created_at: string
-}
-
-interface FavAnswerItem {
-  answer_id: number
-  post_id: number
-  post_title: string
-  content: string
-  author_nickname: string
-  created_at: string
+  created_at?: string
+  post_count?: number
+  answer_count?: number
+  like_received?: number
 }
 
 const route = useRoute()
@@ -55,13 +42,10 @@ const themeStore = useThemeStore()
 const info = ref<ProfileInfo | null>(null)
 const loading = ref(false)
 const tab = ref('posts')
-const statusFilter = ref<0 | 1 | null>(null)
-const favType = ref<1 | 2>(1)
 const page = ref(1)
 const total = ref(0)
-const items = ref<PostCard[]>([])
-const favAnswerItems = ref<FavAnswerItem[]>([])
-const creditLogs = ref<CreditLogItem[]>([])
+const posts = ref<PostCard[]>([])
+const answers = ref<MyAnswerItem[]>([])
 const listLoading = ref(false)
 
 // 资料编辑
@@ -83,29 +67,19 @@ async function fetchInfo() {
 }
 
 async function fetchList() {
-  if (!isSelf.value) return
   listLoading.value = true
   try {
     if (tab.value === 'posts') {
-      const r = await get<Page<PostCard>>('/account/my-posts', {
-        status: statusFilter.value ?? undefined,
+      const r = await get<Page<PostCard>>(`/account/users/${route.params.id}/posts`, {
         page: page.value,
       })
-      items.value = r.items
+      posts.value = r.items
       total.value = r.total
-    } else if (tab.value === 'favorites') {
-      if (favType.value === 1) {
-        const r = await get<Page<PostCard>>('/favorites', { target_type: 1, page: page.value })
-        items.value = r.items
-        total.value = r.total
-      } else {
-        const r = await get<Page<FavAnswerItem>>('/favorites', { target_type: 2, page: page.value })
-        favAnswerItems.value = r.items
-        total.value = r.total
-      }
     } else {
-      const r = await get<Page<CreditLogItem>>('/credit/logs', { page: page.value })
-      creditLogs.value = r.items
+      const r = await get<Page<MyAnswerItem>>(`/account/users/${route.params.id}/answers`, {
+        page: page.value,
+      })
+      answers.value = r.items
       total.value = r.total
     }
   } catch {
@@ -118,17 +92,27 @@ async function fetchList() {
 function resetAndFetch() {
   page.value = 1
   total.value = 0
-  items.value = []
-  favAnswerItems.value = []
-  creditLogs.value = []
+  posts.value = []
+  answers.value = []
   fetchList()
 }
 
-onMounted(fetchInfo)
-watch(() => route.params.id, () => fetchInfo())
-watch([tab, statusFilter, favType], resetAndFetch)
-watch(isSelf, (v) => v && fetchList())
+onMounted(() => {
+  fetchInfo()
+  fetchList()
+})
+watch(() => route.params.id, () => {
+  fetchInfo()
+  resetAndFetch()
+})
+watch(tab, resetAndFetch)
 watch(page, fetchList)
+
+function joinDays() {
+  if (!info.value?.created_at) return ''
+  const days = Math.max(1, Math.ceil((Date.now() - new Date(info.value.created_at).getTime()) / 86400000))
+  return `加入 ${days} 天`
+}
 
 function openEdit() {
   if (!info.value) return
@@ -273,21 +257,26 @@ function fmtTime(s: string | null) {
             <span v-if="info?.school">{{ info.school }}</span>
             <span v-if="info?.major">{{ info.major }}</span>
             <span v-if="!info?.school && !info?.major" class="muted">这位同学还没有填写学校与专业</span>
+            <span class="muted">{{ joinDays() }}</span>
             <span v-if="isSelf && info?.phone" class="muted">{{ info.phone }}</span>
           </p>
         </div>
         <div class="stats">
           <div class="stat">
-            <b>{{ info?.gratitude?.week ?? 0 }}</b>
-            <span>本周感谢值</span>
+            <b>{{ info?.post_count ?? 0 }}</b>
+            <span>提问</span>
           </div>
           <div class="stat">
-            <b>{{ info?.gratitude?.month ?? 0 }}</b>
-            <span>本月感谢值</span>
+            <b>{{ info?.answer_count ?? 0 }}</b>
+            <span>回答</span>
+          </div>
+          <div class="stat">
+            <b>{{ info?.like_received ?? 0 }}</b>
+            <span>获赞</span>
           </div>
           <div class="stat">
             <b>{{ info?.gratitude?.total ?? 0 }}</b>
-            <span>累计感谢值</span>
+            <span>感谢值</span>
           </div>
           <div v-if="isSelf" class="stat credit">
             <b>{{ info?.credit_balance ?? 0 }}</b>
@@ -297,81 +286,40 @@ function fmtTime(s: string | null) {
       </div>
     </div>
 
-    <!-- 本人 Tabs -->
-    <div v-if="isSelf" class="cx-card tabs-card">
+    <!-- 公开内容（任何人可看）：TA 的提问 / 回答 -->
+    <div class="cx-card tabs-card">
       <el-tabs v-model="tab">
-        <el-tab-pane label="我的帖子" name="posts" />
-        <el-tab-pane label="我的收藏" name="favorites" />
-        <el-tab-pane label="积分明细" name="credits" />
+        <el-tab-pane label="TA 的提问" name="posts" />
+        <el-tab-pane label="TA 的回答" name="answers" />
       </el-tabs>
 
-      <!-- 我的帖子 -->
-      <template v-if="tab === 'posts'">
-        <el-radio-group v-model="statusFilter" size="small" class="filter">
-          <el-radio-button :value="null">全部</el-radio-button>
-          <el-radio-button :value="0">待解决</el-radio-button>
-          <el-radio-button :value="1">已解决</el-radio-button>
-        </el-radio-group>
-        <div v-loading="listLoading" class="list">
-          <PostCardItem v-for="p in items" :key="p.id" :post="p" />
-          <el-empty v-if="!listLoading && !items.length" description="还没有发布过提问" />
-        </div>
-      </template>
-
-      <!-- 收藏 -->
-      <template v-else-if="tab === 'favorites'">
-        <el-radio-group v-model="favType" size="small" class="filter">
-          <el-radio-button :value="1">帖子</el-radio-button>
-          <el-radio-button :value="2">回答</el-radio-button>
-        </el-radio-group>
-        <div v-loading="listLoading" class="list">
-          <template v-if="favType === 1">
-            <PostCardItem v-for="p in items" :key="p.id" :post="p" />
-          </template>
-          <template v-else>
-            <div
-              v-for="f in favAnswerItems"
-              :key="f.answer_id"
-              class="cx-card fav-answer"
-              @click="router.push(`/posts/${f.post_id}`)"
-            >
-              <div class="fav-title">{{ f.post_title }}</div>
-              <p class="fav-content">{{ f.content }}</p>
-              <span class="fav-meta">{{ f.author_nickname }} · {{ fmtTime(f.created_at) }}</span>
+      <div v-loading="listLoading" class="list">
+        <template v-if="tab === 'posts'">
+          <PostCardItem v-for="p in posts" :key="p.id" :post="p" />
+          <el-empty v-if="!listLoading && !posts.length" description="还没有发布过提问" />
+        </template>
+        <template v-else>
+          <div
+            v-for="a in answers"
+            :key="a.id"
+            class="cx-card fav-answer"
+            @click="a.post_id && router.push(`/posts/${a.post_id}`)"
+          >
+            <div class="fav-title">
+              {{ a.post_title || '原提问已删除' }}
+              <el-tag v-if="a.is_best" type="success" effect="dark" size="small">最佳</el-tag>
+              <el-tag v-else-if="a.is_accepted" type="success" effect="plain" size="small">已采纳</el-tag>
             </div>
-          </template>
-          <el-empty v-if="!listLoading && ((favType === 1 && !items.length) || (favType === 2 && !favAnswerItems.length))" description="还没有收藏内容" />
-        </div>
-      </template>
-
-      <!-- 积分明细 -->
-      <template v-else>
-        <div v-loading="listLoading" class="list">
-          <div v-for="l in creditLogs" :key="l.id" class="credit-row">
-            <div class="credit-info">
-              <span class="credit-source">{{ l.source_text }}</span>
-              <span class="credit-note">{{ l.note }}</span>
-              <span class="credit-time">{{ fmtTime(l.created_at) }}</span>
-            </div>
-            <div class="right">
-              <span class="change" :class="l.change > 0 ? 'plus' : 'minus'">
-                {{ l.change > 0 ? '+' : '' }}{{ l.change }}
-              </span>
-              <span class="after">余额 {{ l.balance_after }}</span>
-            </div>
+            <p class="fav-content">{{ a.content }}</p>
+            <span class="fav-meta">获赞 {{ a.like_count }} · {{ fmtTime(a.created_at) }}</span>
           </div>
-          <el-empty v-if="!listLoading && !creditLogs.length" description="暂无积分流水" />
-        </div>
-      </template>
+          <el-empty v-if="!listLoading && !answers.length" description="还没有回答过问题" />
+        </template>
+      </div>
 
       <div v-if="total > 20" class="pager">
         <el-pagination v-model:current-page="page" :total="total" :page-size="20" layout="prev, pager, next" background />
       </div>
-    </div>
-
-    <!-- 他人视角提示 -->
-    <div v-else class="cx-card other-tip">
-      <p>TA 的公开内容可在广场与搜索中查看</p>
     </div>
 
     <!-- 资料编辑 -->
@@ -556,63 +504,6 @@ function fmtTime(s: string | null) {
 .fav-meta {
   color: #999;
   font-size: 12px;
-}
-
-.credit-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 4px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
-}
-
-.credit-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.credit-source {
-  font-weight: 600;
-  font-size: 14px;
-}
-
-.credit-note {
-  color: #999;
-  font-size: 12px;
-}
-
-.credit-time {
-  color: #bbb;
-  font-size: 12px;
-}
-
-.right {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-}
-
-.change.plus {
-  color: var(--el-color-success);
-  font-weight: 700;
-}
-
-.change.minus {
-  color: var(--el-color-danger);
-  font-weight: 700;
-}
-
-.after {
-  color: #999;
-  font-size: 12px;
-}
-
-.other-tip {
-  padding: 40px;
-  text-align: center;
-  color: #999;
 }
 
 /* 主题装扮对话框 */

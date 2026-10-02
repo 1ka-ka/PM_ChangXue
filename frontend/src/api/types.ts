@@ -66,6 +66,40 @@ export interface CommentItem {
   replies: CommentItem[]
 }
 
+// ---- 个人中心（V1.12）----
+
+export interface MyAnswerItem {
+  id: number
+  post_id: number
+  post_title: string | null // 所属帖已删时 null
+  post_status: number | null
+  content: string
+  is_accepted: boolean
+  is_best: boolean
+  like_count: number
+  created_at: string
+}
+
+export interface MyCommentItem {
+  id: number
+  target_type: number // 1帖子 2回答
+  target_id: number
+  post_id: number | null
+  post_title: string | null
+  content: string
+  created_at: string
+}
+
+export interface MyLikeItem {
+  target_type: number // 1帖 2答 3评论
+  target_id: number
+  post_id: number | null
+  post_title: string | null
+  content: string
+  author_nickname: string | null
+  created_at: string
+}
+
 export interface Page<T> {
   total: number
   items: T[]
