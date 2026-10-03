@@ -124,6 +124,41 @@ class GatewayClient:
         except ValidationError as e:
             raise LLMDegradedError(f"场景 {scene} 输出不合契约: {e}") from e
 
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        """文本向量化（V1.19 相似推荐语义检索）：POST {base}/embeddings。
+
+        与 chat 场景无关（无契约/prompt），输入为文本列表，输出为等长向量列表；
+        任何失败抛 LLMDegradedError，调用方回退 bigram。
+        """
+        if not settings.LLM_ENABLED or not settings.LLM_API_KEY:
+            raise LLMDegradedError("LLM 未启用（embed）")
+        cleaned = [(t or "").strip() for t in texts]
+        if not cleaned or any(not t for t in cleaned):
+            raise LLMDegradedError("embed 输入存在空文本")
+
+        url = f"{settings.LLM_BASE_URL.rstrip('/')}/embeddings"
+        headers = {"Authorization": f"Bearer {settings.LLM_API_KEY}"}
+        body = {"model": settings.LLM_EMBED_MODEL, "input": cleaned}
+        last_err: Exception | None = None
+        for attempt in range(settings.LLM_MAX_RETRIES + 1):
+            try:
+                resp = httpx.post(url, json=body, headers=headers, timeout=settings.LLM_TIMEOUT_SECONDS)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    vecs = [item["embedding"] for item in data["data"]]
+                    if len(vecs) != len(cleaned) or any(not v for v in vecs):
+                        raise LLMDegradedError("embeddings 返回数量/内容异常")
+                    return vecs
+                if 400 <= resp.status_code < 500 and resp.status_code != 429:
+                    raise LLMDegradedError(f"embed HTTP {resp.status_code}: {resp.text[:200]}")
+                last_err = LLMDegradedError(f"embed HTTP {resp.status_code}")
+            except LLMDegradedError:
+                raise
+            except Exception as e:
+                last_err = e
+            logger.warning("embed 调用失败 第%d次: %s", attempt + 1, last_err)
+        raise LLMDegradedError(f"embed 调用最终失败（已重试）: {last_err}")
+
     def _chat(self, body: dict, scene: str) -> str:
         """chat/completions 调用：超时+重试；网络/非 200/空回复均抛降级。"""
         url = f"{settings.LLM_BASE_URL.rstrip('/')}/chat/completions"

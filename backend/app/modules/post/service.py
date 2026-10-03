@@ -53,9 +53,7 @@ def _no_answer_days(post: Post) -> int | None:
     return days if days > settings.NO_ANSWER_MARK_DAYS else None
 
 
-# ---- 相似问答推荐（V1.1）----
-# 冷启动方案：标题字符 bigram Jaccard + 标签重合加权 + 已解决/热度加成，全内存计算。
-# TODO 量大后切 MySQL 全文索引或 LLM 网关 similar_qa 场景（契约已就绪 app/gateway/contracts.py）。
+# ---- 相似问答推荐（V1.1 bigram 冷启动；V1.19 升级 LLM 语义向量，任一环节失败逐级回退 bigram）----
 
 SIMILAR_MIN_SCORE = 0.2  # 低于该分数不推荐（避免无意义结果）
 _TAG_BONUS_PER = 0.15    # 每个重合标签加分
@@ -64,6 +62,15 @@ _SOLVED_BONUS = 0.1      # 已解决帖（有采纳答案）加成
 _ANSWER_BONUS_PER = 0.02  # 每个回答小幅加成
 _ANSWER_BONUS_MAX = 0.06
 
+# V1.19 语义：余弦 [0.35, 0.75] 线性映射到 [0, 1]（与 bigram Jaccard 同量纲后再加权）
+# —— text-embedding-v3 同题异述通常 >0.55、无关文本基线 ~0.3，故 ≤0.35 视为不相关。
+_COS_FLOOR, _COS_CEIL = 0.35, 0.75
+
+# 查询向量内存缓存：q → (过期时间戳, 向量)；满 200 条整体清空（简单防涨）
+_query_embed_cache: dict[str, tuple[float, list[float]]] = {}
+_QUERY_CACHE_TTL_SECONDS = 600
+_QUERY_CACHE_MAX = 200
+
 
 def _bigrams(text: str) -> set[str]:
     """中文友好：去空白标点后取相邻字符二元组（"依赖注入" → {依赖,赖注,注入}）。"""
@@ -71,19 +78,69 @@ def _bigrams(text: str) -> set[str]:
     return {cleaned[i : i + 2] for i in range(len(cleaned) - 1)} if len(cleaned) > 1 else {cleaned} if cleaned else set()
 
 
-def _similar_score(
-    query_bigrams: set[str], post: Post, post_tag_ids: set[int], query_tag_ids: set[int]
-) -> float:
-    """标题 bigram Jaccard + 标签/状态/热度加权。"""
-    target = _bigrams(post.title)
-    if not query_bigrams or not target:
+def embed_text(title: str, content: str) -> str:
+    """参与向量化的文本：标题 + 正文前 200 字（发帖异步计算与存量回填共用）。"""
+    return f"{title}。{(content or '')[:200]}".strip()
+
+
+def _cosine(a: list[float], b: list[float]) -> float:
+    if not a or len(a) != len(b):
         return 0.0
-    union = query_bigrams | target
-    sim = len(query_bigrams & target) / len(union) if union else 0.0
+    import math
+
+    dot = sum(x * y for x, y in zip(a, b))
+    na = math.sqrt(sum(x * x for x in a))
+    nb = math.sqrt(sum(y * y for y in b))
+    return dot / (na * nb) if na and nb else 0.0
+
+
+def _cos_to_sim(cos: float) -> float:
+    """余弦 → 与 bigram Jaccard 可比的 0-1 相关度（线性映射）。"""
+    if cos <= _COS_FLOOR:
+        return 0.0
+    return min((cos - _COS_FLOOR) / (_COS_CEIL - _COS_FLOOR), 1.0)
+
+
+def _query_vector(q: str) -> list[float] | None:
+    """查询文本向量（带 TTL 缓存）；LLM 不可用返回 None → 整轮回退 bigram。"""
+    import time
+
+    from app.gateway.client import LLMDegradedError, gateway
+
+    now = time.time()
+    hit = _query_embed_cache.get(q)
+    if hit and hit[0] > now:
+        return hit[1]
+    try:
+        vec = gateway.embed([q])[0]
+    except LLMDegradedError:
+        return None
+    if len(_query_embed_cache) >= _QUERY_CACHE_MAX:
+        _query_embed_cache.clear()
+    _query_embed_cache[q] = (now + _QUERY_CACHE_TTL_SECONDS, vec)
+    return vec
+
+
+def _similar_score(
+    query_bigrams: set[str],
+    query_vec: list[float] | None,
+    post: Post,
+    post_tag_ids: set[int],
+    query_tag_ids: set[int],
+) -> float:
+    """相关度 base（语义余弦优先，无向量回退 bigram Jaccard）+ 标签/状态/热度加权。"""
+    if query_vec is not None and post.embedding:
+        base = _cos_to_sim(_cosine(query_vec, post.embedding))
+    else:
+        target = _bigrams(post.title)
+        if not query_bigrams or not target:
+            return 0.0
+        union = query_bigrams | target
+        base = len(query_bigrams & target) / len(union) if union else 0.0
     tag_bonus = min(_TAG_BONUS_PER * len(post_tag_ids & query_tag_ids), _TAG_BONUS_MAX)
     solved_bonus = _SOLVED_BONUS if post.status == 1 else 0.0
     answer_bonus = min(post.answer_count * _ANSWER_BONUS_PER, _ANSWER_BONUS_MAX)
-    return sim + tag_bonus + solved_bonus + answer_bonus
+    return base + tag_bonus + solved_bonus + answer_bonus
 
 
 def similar_posts(
@@ -96,11 +153,13 @@ def similar_posts(
     """相似问答推荐：返回带 score 的 PostCard 列表（降序，低于阈值过滤）。
 
     用途：发帖页防重复提问（输入标题实时提示）+ 帖子详情页"相关问题"。
+    V1.19：查询向量可得时按语义余弦打分（逐帖回退：帖子无向量走 bigram）。
     """
     query_bigrams = _bigrams(q)
     if not query_bigrams:
         return []
     query_tags = set(tag_ids or [])
+    query_vec = _query_vector(q)
     posts = (
         db.execute(
             select(Post).where(Post.deleted_at.is_(None)).order_by(Post.created_at.desc()).limit(1000)
@@ -118,13 +177,35 @@ def similar_posts(
                 select(Tag).join(PostTag, PostTag.tag_id == Tag.id).where(PostTag.post_id == p.id)
             ).scalars()
         }
-        score = _similar_score(query_bigrams, p, p_tags, query_tags)
+        score = _similar_score(query_bigrams, query_vec, p, p_tags, query_tags)
         if score >= SIMILAR_MIN_SCORE:
             scored.append((score, p))
     scored.sort(key=lambda x: x[0], reverse=True)
     return [
         {**_card(db, p), "similar_score": round(s, 3)} for s, p in scored[:limit]
     ]
+
+
+def generate_embedding_task(post_id: int) -> None:
+    """BackgroundTasks 入口（V1.19）：发帖/编辑后异步计算语义向量。
+
+    任何失败静默降级（embedding 保持 NULL，相似推荐时该帖回退 bigram），不影响主流程。
+    """
+    from app.core.database import SessionLocal
+    from app.gateway.client import LLMDegradedError, gateway
+
+    with SessionLocal() as db:
+        post = db.get(Post, post_id)
+        if post is None or post.deleted_at is not None:
+            return
+        try:
+            vec = gateway.embed([embed_text(post.title, post.content)])[0]
+        except LLMDegradedError:
+            return
+        post = db.get(Post, post_id)  # 重取防并发过期
+        if post is not None and post.deleted_at is None:
+            post.embedding = vec
+            db.commit()
 
 
 def _card(db: Session, post: Post, author: User | None = None) -> dict:

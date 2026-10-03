@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     LLM_BASE_URL: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     LLM_TIMEOUT_SECONDS: int = 10
     LLM_MAX_RETRIES: int = 2  # 首次 + 重试次数
+    LLM_EMBED_MODEL: str = "text-embedding-v3"  # V1.19 相似推荐语义向量模型（DashScope OpenAI 兼容 /embeddings）
 
     # ---- 短信验证码（V1.4；dev 零依赖联调，aliyun 需 .env 配 Key + pip 装 SDK）----
     SMS_PROVIDER: str = "dev"  # dev（验证码写日志）/ aliyun

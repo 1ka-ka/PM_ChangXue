@@ -47,6 +47,7 @@ class Post(Base):
     ai_summary: Mapped[str | None] = mapped_column(String(200), default=None)  # V1.2 启用
     ai_answer: Mapped[str | None] = mapped_column(Text, default=None)  # AI 参考回答（V1.3，缓存生成结果）
     ai_answer_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)  # 生成时间
+    embedding = mapped_column(JSON, nullable=True)  # 标题+正文前 200 字语义向量（V1.19 相似推荐，失败为 NULL 回退 bigram）
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
