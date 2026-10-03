@@ -7,10 +7,12 @@ import { useRouter } from 'vue-router'
 import { get, post } from '@/api/http'
 import type { Page } from '@/api/types'
 import { useAuthStore } from '@/stores/auth'
+import UserDecor from '@/components/UserDecor.vue'
 
 interface Actor {
   id: number
   nickname: string
+  equipped?: Record<string, { product_id: number; name: string; payload: string }> | null
 }
 
 interface NotificationItem {
@@ -104,6 +106,7 @@ watch(page, fetchList)
         <div class="body">
           <div class="line">
             <b class="actor">{{ n.actor?.nickname || '系统' }}</b>
+            <UserDecor v-if="n.actor" :equipped="n.actor.equipped" />
             <span class="text">{{ n.type_text }}</span>
             <el-tag v-if="!n.is_read" size="small" type="danger" effect="dark" class="dot">未读</el-tag>
           </div>

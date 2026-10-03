@@ -622,6 +622,22 @@ const decorEmpty = computed(
   gap: 24px;
 }
 
+/* V1.18 窄屏：统计换行、宠物挂件缩小 */
+@media (max-width: 768px) {
+  .head-card {
+    padding: 16px;
+  }
+
+  .stats {
+    flex-wrap: wrap;
+    gap: 12px 20px;
+  }
+
+  .pet-corner .pet-widget {
+    font-size: 30px;
+  }
+}
+
 .stat {
   display: flex;
   flex-direction: column;

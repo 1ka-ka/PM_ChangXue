@@ -220,6 +220,8 @@ async function submit() {
 
 <style scoped>
 .page {
+  position: relative;
+  overflow: hidden;
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -228,7 +230,62 @@ async function submit() {
   padding: 20px;
 }
 
+/* V1.18 背景动画：主题色柔光斑漂浮（纯 CSS，跟随主题装扮变色） */
+.page::before,
+.page::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.35;
+  pointer-events: none;
+  animation: cx-blob 12s ease-in-out infinite alternate;
+}
+
+.page::before {
+  width: 420px;
+  height: 420px;
+  background: var(--el-color-primary-light-5);
+  top: -120px;
+  left: -120px;
+}
+
+.page::after {
+  width: 360px;
+  height: 360px;
+  background: var(--el-color-primary-light-7);
+  bottom: -100px;
+  right: -100px;
+  animation-delay: -6s;
+}
+
+@keyframes cx-blob {
+  from {
+    transform: translate(0, 0) scale(1);
+  }
+  to {
+    transform: translate(60px, 40px) scale(1.15);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page::before,
+  .page::after {
+    animation: none;
+  }
+}
+
+/* V1.18 窄屏：卡片撑满屏宽 */
+@media (max-width: 480px) {
+  .card {
+    width: 100%;
+    padding: 24px 20px 20px;
+  }
+}
+
 .card {
+  position: relative;
+  z-index: 1;
   width: 380px;
   background: #fff;
   border-radius: 12px;

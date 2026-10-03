@@ -169,3 +169,41 @@ a {
     transform: translateY(-8px) rotate(4deg);
   }
 }
+
+/* ---- V1.18 UI/UX：全局交互反馈 + 路由过渡 ---- */
+/* 按钮按压微缩反馈（Element Plus 全局按钮） */
+.el-button:active {
+  transform: scale(0.96);
+}
+
+/* 路由切换过渡（MainLayout router-view 使用） */
+.cx-fade-enter-active,
+.cx-fade-leave-active {
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
+}
+
+.cx-fade-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.cx-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+/* 无障碍：用户系统偏好减少动效时关闭装饰性动画 */
+@media (prefers-reduced-motion: reduce) {
+  .pet-widget,
+  .name-effect-shine,
+  .name-effect-flame {
+    animation: none;
+  }
+
+  .cx-fade-enter-active,
+  .cx-fade-leave-active {
+    transition: none;
+  }
+}

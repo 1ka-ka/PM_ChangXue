@@ -277,6 +277,14 @@ onUnmounted(() => {
   padding: 8px;
 }
 
+/* V1.18 窄屏：会话列表收窄，聊天区保留更多空间 */
+@media (max-width: 768px) {
+  .convs {
+    width: 168px;
+    padding: 6px;
+  }
+}
+
 .conv-item {
   display: flex;
   gap: 10px;

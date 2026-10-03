@@ -169,7 +169,11 @@ function onCommand(cmd: string) {
     </nav>
 
     <main class="content">
-      <router-view :key="route.fullPath" />
+      <router-view v-slot="{ Component }" :key="route.fullPath">
+        <transition name="cx-fade" mode="out-in">
+          <component :is="Component" />
+        </transition>
+      </router-view>
     </main>
   </div>
 </template>
@@ -269,5 +273,39 @@ function onCommand(cmd: string) {
 .content {
   width: 100%;
   padding: 20px 28px 60px;
+}
+
+/* ---- V1.18 窄屏适配（≤768px）：压缩留白、搜索框收缩、导航收紧 ---- */
+@media (max-width: 768px) {
+  .topbar-inner {
+    gap: 10px;
+    padding: 0 14px;
+  }
+
+  .logo {
+    font-size: 19px;
+    letter-spacing: 1px;
+  }
+
+  .actions {
+    gap: 8px;
+  }
+
+  .subnav-inner {
+    padding: 0 14px;
+  }
+
+  .subtab {
+    padding: 6px 10px;
+    font-size: 14px;
+  }
+
+  .subnav .search-box {
+    max-width: 200px;
+  }
+
+  .content {
+    padding: 14px 14px 40px;
+  }
 }
 </style>
